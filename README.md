@@ -1,121 +1,124 @@
-# HimGati
+# 🚌 HimGati
 
-**Smart public transport & tourism platform for Himachal Pradesh**
-SIH 2026 · Real-time bus tracking, journey planning, tourism discovery and sustainable travel information.
+### Know where your bus is. Know when it'll reach you. Know how clean it is.
 
-A mobile-first React PWA. Runs from a single URL, installs to a home screen, and works from downloaded data when the signal goes.
+HimGati is a smart bus-tracking app built for Himachal Pradesh — a place where GPS gets confused by the mountains and mobile signal disappears for miles at a time. So instead of just showing a dot on a map and hoping for the best, HimGati tells you the *truth*: exactly how sure it is about where your bus is, and gives you five other ways to find your stop when GPS gives up.
 
-```bash
-npm install
-npm run dev      # http://localhost:5173
-```
+Built for **SIH 2026**.
 
 ---
 
-## The problem, and the position we take on it
+## 🚀 Try it yourself (takes 2 minutes)
 
-In Himachal, people wait at stops without knowing whether the bus has already left, whether it is five minutes or fifty away, or whether it was cancelled by a landslide. Existing apps fail here for two specific reasons: **the hills break GPS accuracy**, and **mobile networks vanish for long stretches**.
+You don't need to know how to code. Just follow these steps:
 
-So the product takes two positions that shape every screen:
+1. **Install [Node.js](https://nodejs.org)** if you don't already have it (pick the "LTS" version, click next through the installer).
+2. **Open a terminal** in this folder and run:
+   ```bash
+   npm install
+   ```
+   *(This downloads everything the app needs — takes about a minute.)*
+3. **Start the app:**
+   ```bash
+   npm run dev
+   ```
+4. **Open your browser** and go to the address it shows you — usually **http://localhost:5173**
 
-**1. GPS is one input among six, not the input.**
-Position can be established by GPS, bus-stop search, landmark, a manually dropped map pin, a QR plate at the stand, or by route/bus number with no location at all. Each method reports the accuracy it can honestly claim — a QR scan is ±5 m, a landmark is ±220 m — and a GPS fix worse than 500 m is *rejected*, because a vague fix that sends you to the wrong stop is worse than no fix.
+That's it — the app is now running on your computer, exactly as it would on a phone.
 
-**2. Never show a precision the data cannot support.**
-Confidence is derived from data freshness alone, and the number changes shape as the feed ages:
+### 👀 Where to start looking
 
-| Fix age | Confidence | Shown as |
-|---|---|---|
-| under 1 min | High | `7 min` |
-| under 5 min | Medium | `7 min (±2)` |
-| over 5 min | Low | `8–14 min` |
-| over 3 min silent | — | `Signal lost — last seen at Kandaghat, 4 min ago` |
-| over 15 min silent | — | prediction abandoned; the printed timetable answers instead |
+Once it's open, try this in order:
 
-Other apps freeze the bus icon and let you believe it is live. Telling the truth about staleness is the feature.
-
----
-
-## What is implemented
-
-All 18 screens, one design system, live data throughout.
-
-**Core** — Home · Search · Journey planner · Live bus map
-**Transit detail** — Bus information · Bus reviews · Stop details · Smart location · QR scanner
-**Tourism** — Explore Himachal · Destination detail · Smart itinerary
-**Personal** — My trips · Sustainability · Notifications · Profile · Offline mode
-**Reference** — UI states (every loading, empty, error and permission path in one place)
-
-On a desktop viewport the app renders in a device frame with a screen index on the left, so every screen is one click away for a reviewer.
-
-### The numbers are real arithmetic, not copy
-
-Every figure on screen is computed, traceable and defensible:
-
-- **Green Score** (`src/lib/green.ts`) — `fuel×0.50 + norm×0.35 + age×0.15`, per the SRS weighting. The bus detail screen prints the three components and their weights, so a depot manager challenging a "94" can see where it came from.
-- **CO₂** — `(car − bus) × distance` using 0.17 / 0.05 / 0.04 / 0.02 kg per passenger-km. The sustainability dashboard sums from the trip history rather than storing a total, so the monthly figure always reconciles with the journeys listed under it. Every assumption is printed on the page.
-- **Emission norms are not flattered.** BS-IV and BS-III get warning and error colours and are described as "superseded" and "obsolete". A bus whose operator never filed an emission record is labelled *estimated* rather than silently guessed.
-
-### The simulator
-
-The SRS calls a bus simulator the demo centrepiece, and `src/services/simulation/simulator.ts` is it. It stands in for the whole ingest pipeline — AIS-140 VLTD → MQTT → cleaning → map-matching → prediction → WebSocket fan-out — and emits exactly the `VehiclePosition` shape a GTFS-Realtime feed produces.
-
-It runs at **12× wall clock** so a 7-hour Shimla–Manali run is watchable. Pinned states so a demo never depends on luck:
-
-| Vehicle | State |
+| Do this | You'll see |
 |---|---|
-| `HP-01-3312` | Enters a modelled dead zone between Sundernagar and Mandi ~45 s after load. Watch it drop to **Signal lost**, the age counter climb, the ETA widen to a range, then fall back to the timetable at 15 min — and finally *slide* back to its true position on recovery rather than teleporting. |
-| `HP-52-0456` | Cancelled (and a BS-III private vehicle, so it also demonstrates the honest emissions treatment) |
-| `HP-52-1187` | Running 14 minutes late |
-| `HP-01-5540` | Running 7 minutes late |
+| Look at the **Home** screen | Buses arriving near you, right now, with live countdown timers |
+| Tap **"Track bus"** or the map icon | A live map with buses actually moving along their routes |
+| Tap any bus card | Full details — is it electric, how clean is it, what's it like inside |
+| Tap **"GPS not working?"** on Home | Six different ways to tell the app where you are, without needing GPS |
+| Go to **Explore** | Tourist spots around Himachal, each one telling you exactly which bus gets you there |
+| Go to **"Build a day plan"** | Tell it what you like doing and how much time you have — it plans your whole day using buses |
+
+💡 **Tip:** Watch bus **HP-01-3312** on the map for about a minute — it drives into a mountain valley with no signal, and you'll see the app honestly say *"Signal lost"* instead of pretending it still knows where the bus is. That's the whole point of the app.
 
 ---
 
-## Architecture
+## 🧩 What problem does this actually solve?
 
-Built so the mock layer can be replaced without touching a screen.
+If you've ever waited at a bus stop in the hills, you know the feeling: *has the bus already left? Is it 5 minutes away or 50? Did a landslide cancel it?*
 
-```
-src/
-  types/         Domain model — a lossless projection of GTFS + GTFS-Realtime
-  lib/           green.ts (Green Score, CO₂) · eta.ts (confidence rules) · geo.ts (haversine, map-matching)
-  data/          Stops, routes, fleet, places, trips, reviews, alerts
-  services/
-    client.ts    The transport seam — mock today, `mode: 'http'` tomorrow
-    adapters/    GTFS static, GTFS-RT VehiclePosition/TripUpdate, and Vahan → domain mappings
-    simulation/  Fleet simulator standing in for the live feed
-    ...          transit · journey · places · itinerary · search · location · offline
-  components/    ui/ (design system) · transit/ · map/ · layout/ · art/
-  screens/       18 screens
-```
+Every existing transit app struggles here for two reasons — **the mountains block GPS**, and **mobile network just disappears** for long stretches. HimGati is designed around that reality instead of ignoring it.
 
-**Every service call goes through `request()` in `services/client.ts`.** Each one carries the endpoint path it will eventually hit, so the API surface is documented in code. Switching to a real gateway is a config change plus the adapters in `services/adapters/gtfs.ts`, which are written and type-checked against the domain model already.
+**1. GPS is just one option, not the only one.**
+You can find your bus stop by GPS, by searching the stop name, by typing a nearby landmark ("near the temple"), by dropping a pin on the map, by scanning a QR code at the stop, or just by typing the bus's route number — no location needed at all.
 
-Designed to accept: GTFS static bundles, GTFS-Realtime (VehiclePosition, TripUpdate, ServiceAlert), AIS-140 VLTD streams over MQTT, HRTC/HPTDC operator APIs, the HP tourism dataset, and crowd reports.
+**2. The app never fakes confidence it doesn't have.**
+If the bus reported its position 10 seconds ago, you get a precise "7 min". If it's been 6 minutes of silence, you get an honest range like "8–14 min" instead of a made-up exact number. If the bus goes quiet for too long, the app plainly says **"Signal lost"** and tells you the last place it was seen — rather than freezing the bus icon and letting you believe it's still live (which is what most apps do).
+
+---
+
+## ✨ Everything in the app
+
+**Get around**
+Home · Search (understands plain sentences like *"bus from Shimla to Manali tomorrow morning"*) · Journey planner · Live bus map
+
+**About your bus**
+Bus details (fuel type, cleanliness score, seating) · Passenger reviews · Bus stop details · Six ways to find your location · QR code scanner
+
+**Explore Himachal**
+Browse attractions, cafés & viewpoints · Full destination pages that tell you exactly how to get there by bus · An itinerary builder that plans your whole day around bus timings
+
+**Your account**
+Trip history · Your environmental impact (CO₂ saved by taking the bus) · Notifications for delays & disruptions · Profile & preferences · Offline mode for when there's no signal at all
+
+---
+
+## 🌱 The numbers are real, not just for show
+
+- **Green Score** — every bus gets a score out of 100 based on its fuel type, emission standard, and age. The app shows you exactly how that score was calculated, not just the final number.
+- **CO₂ saved** — calculated by comparing the bus you took against driving the same distance alone in a car. Every trip in your history adds up into your personal impact dashboard.
+- **No greenwashing** — an older, more polluting bus is clearly marked as such, in red. The app doesn't pretend every bus is eco-friendly just because it's a bus.
+
+---
+
+## 🎬 Why the buses actually move on the map
+
+Real buses obviously aren't driving around for this demo — so a small simulator plays the part of the live tracking system, moving buses along their real routes in real time (sped up, so a 7-hour journey plays out in minutes). A couple of buses are scripted to always show interesting things: one loses signal in a mountain pass and comes back, one is running late, one is cancelled. That way, every time you open the app, there's always something worth watching.
+
+---
+
+## 🛠️ For developers
+
+<details>
+<summary>Click to expand: tech stack, architecture, and what's not built</summary>
 
 ### Stack
+React 19 · TypeScript (strict) · Vite 6 · Tailwind v4 · React Router 7 · Leaflet + OpenStreetMap · Framer Motion · vite-plugin-pwa
 
-React 19 · TypeScript (strict) · Vite 6 · Tailwind v4 · React Router 7 · Leaflet + OpenStreetMap (Carto Positron) · Framer Motion · vite-plugin-pwa
+### How it's structured
+```
+src/
+  types/         Domain model — matches the shape of GTFS + GTFS-Realtime
+  lib/           Green Score & CO₂ math · ETA confidence rules · geo helpers
+  data/          Stops, routes, fleet, places, trips, reviews, alerts
+  services/
+    client.ts    Every network call goes through here — swap mock data for a
+                 real API by changing one config line
+    adapters/    Ready-made mappings from GTFS/GTFS-RT feeds to the app's data
+    simulation/  The live-bus simulator described above
+  components/    Design system, transit widgets, map, layout
+  screens/       Every screen in the app
+```
 
-Maps use a greyscale basemap deliberately: a transit map has to carry four overlays at once — routes, vehicles, stops, the user — and a colourful basemap makes that unreadable. OSM tiles also satisfy the SRS's "free, no per-call cost" constraint.
+Every "live" data call is written against the same interface a real backend would use (GTFS static + GTFS-Realtime + AIS-140 vehicle trackers), so plugging in a real transport department feed later is a matter of swapping the data source, not rewriting screens.
 
-Destination artwork is **generated**, not photographed — each place renders a deterministic ridge-line scene from its seed. Photography would mean shipping tens of megabytes or fetching from a CDN, neither of which is acceptable for an app whose premise is working on a weak hill connection.
+### Data used
+8 real HRTC bus routes across Shimla, Mandi, Kullu and Kangra districts, 26 real stops, and 16 buses with realistic fuel/age/emission mixes (including older, more polluting ones — deliberately, so the "honest emissions" feature has something real to show).
 
----
+### What's out of scope for this build
+- **Driver app** (trip start/end, delay reporting, SOS)
+- **Admin/depot dashboard** (fleet management, route editing)
 
-## Data
+The SMS and phone-line (IVR) access methods are shown in the app — you can see exactly what a text message reply would look like — but the actual telecom gateway is backend infrastructure outside this build.
 
-Eight real HRTC corridors across the Shimla, Mandi, Kullu and Kangra valleys (Shimla–Manali, Shimla–Parwanoo, Shimla–Narkanda, Shimla–Chail, Shimla–McLeod Ganj, Kullu–Manali, Manali–Solang, Shimla city circular), 26 stops and 16 vehicles with real fuel/norm/year mixes.
-
-Stop coordinates are approximate town and stand positions, good to a few hundred metres — enough for route drawing and walk estimates, and intended to be replaced by surveyed positions from the transport department. Route polylines are coarse; each route carries its published road distance and per-stop distances are rescaled to it, so quoted kilometres are right even though the drawn line is simplified.
-
----
-
-## Not built
-
-Scoped out deliberately, both in the SRS but outside the passenger app:
-
-- **Driver app** — OTP login, Start/End Trip, delay and breakdown reporting, SOS
-- **Admin panel** — fleet map, route/stop CRUD, on-time reports, disruption publishing
-
-The SMS (`BUS 0456`) and IVR access paths are *shown* in the app — the stop screen renders the exact reply a gateway would send — but the gateway itself is backend work.
+</details>
