@@ -1,0 +1,236 @@
+@import 'tailwindcss';
+@import 'leaflet/dist/leaflet.css';
+
+/* ------------------------------------------------------------------------- */
+/*  HimGati design system                                                     */
+/*  One accent (deep teal), a navy-tinted neutral ramp, hairline borders and  */
+/*  very restrained elevation. No decorative gradients, no pill-shaped        */
+/*  primary controls — this should read as infrastructure, not a toy.         */
+/* ------------------------------------------------------------------------- */
+
+@theme {
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    sans-serif;
+  --font-display:
+    'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', monospace;
+
+  /* Neutrals — cool, navy-leaning so they sit under the teal accent */
+  --color-canvas: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-surface-2: #fafbfc;
+  --color-surface-3: #f0f3f6;
+  --color-line: #e5e9ef;
+  --color-line-strong: #d3d9e3;
+
+  --color-ink: #0c1424;
+  --color-ink-2: #3a465c;
+  --color-ink-3: #6b7689;
+  --color-ink-4: #99a2b1;
+
+  /* Brand — deep teal */
+  --color-brand-50: #edf7f5;
+  --color-brand-100: #d2ece7;
+  --color-brand-200: #a6dad0;
+  --color-brand-300: #6ec2b4;
+  --color-brand-400: #37a695;
+  --color-brand-500: #17857a;
+  --color-brand-600: #0f6b62;
+  --color-brand-700: #0b544e;
+  --color-brand-800: #093f3b;
+  --color-brand-900: #072f2c;
+
+  /* Semantic */
+  --color-ok: #0e7a4a;
+  --color-ok-bg: #e7f5ed;
+  --color-ok-line: #bfe3ce;
+  --color-warn: #a85c07;
+  --color-warn-bg: #fdf2e3;
+  --color-warn-line: #f3ddb8;
+  --color-bad: #bd302a;
+  --color-bad-bg: #fbeceb;
+  --color-bad-line: #f2c9c6;
+  --color-info: #1f4ed0;
+  --color-info-bg: #ecf1fe;
+  --color-info-line: #cdd9fb;
+
+  /* Fuel / emission identity colours (used by GreenBadge) */
+  --color-fuel-electric: #0b6f8f;
+  --color-fuel-electric-bg: #e6f3f8;
+  --color-fuel-cng: #14713f;
+  --color-fuel-cng-bg: #e6f3ec;
+  --color-fuel-hybrid: #4f5fae;
+  --color-fuel-hybrid-bg: #ecefFB;
+  --color-fuel-diesel: #6b7689;
+  --color-fuel-diesel-bg: #f0f2f5;
+
+  --radius-card: 16px;
+  --radius-sheet: 24px;
+  --radius-field: 12px;
+
+  --shadow-xs: 0 1px 2px rgba(12, 20, 36, 0.05);
+  --shadow-sm: 0 1px 2px rgba(12, 20, 36, 0.04), 0 2px 6px -2px rgba(12, 20, 36, 0.06);
+  --shadow-md: 0 2px 4px rgba(12, 20, 36, 0.03), 0 10px 22px -10px rgba(12, 20, 36, 0.14);
+  --shadow-lg: 0 14px 36px -14px rgba(12, 20, 36, 0.22);
+  --shadow-sheet: 0 -10px 34px -14px rgba(12, 20, 36, 0.24);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: #101725;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv05' 1, 'ss01' 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.018em;
+    color: var(--color-ink);
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Tabular figures everywhere a number is compared against another number. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  .hairline {
+    border: 1px solid var(--color-line);
+  }
+
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .scroll-area {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+}
+
+/* --- Leaflet overrides: strip the default chrome so the map reads as ours -- */
+.leaflet-container {
+  background: #e9edf1;
+  font-family: var(--font-sans);
+  outline: none;
+}
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: var(--color-ink-4) !important;
+  padding: 1px 5px !important;
+  border-radius: 6px 0 0 0;
+}
+.leaflet-control-attribution a {
+  color: var(--color-ink-3) !important;
+}
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+.leaflet-control-zoom a {
+  background: #fff !important;
+  color: var(--color-ink-2) !important;
+  border-bottom: 1px solid var(--color-line) !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  font-size: 16px !important;
+}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  transition: transform 900ms linear;
+}
+.himgati-marker {
+  background: transparent;
+  border: none;
+}
+
+/* Subtle live-data pulse used by the "signal fresh" dot. */
+@keyframes himgati-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(15, 107, 98, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(15, 107, 98, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(15, 107, 98, 0);
+  }
+}
+.pulse-dot {
+  animation: himgati-pulse 2.2s var(--ease-out-soft) infinite;
+}
+
+@keyframes himgati-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-3);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  animation: himgati-shimmer 1.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
