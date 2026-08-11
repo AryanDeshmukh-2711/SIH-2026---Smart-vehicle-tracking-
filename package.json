@@ -2,7 +2,7 @@
   "name": "himgati",
   "version": "1.0.0",
   "private": true,
-  "description": "HimGati — smart public transport & tourism platform for Himachal Pradesh",
+  "description": "HimGati \u2014 smart public transport & tourism platform for Himachal Pradesh",
   "workspaces": [
     "packages/*",
     "web",
@@ -18,6 +18,12 @@
     "dev:sim": "npm run simulator --workspace @himgati/api",
     "dev:web": "npm run dev --workspace @himgati/web",
     "build": "npm run build --workspace @himgati/web",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev:reset": "docker exec himgati-redis redis-cli FLUSHALL"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
   }
 }

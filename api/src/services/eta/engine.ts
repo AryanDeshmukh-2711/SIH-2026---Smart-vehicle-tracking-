@@ -120,7 +120,12 @@ export function computeEta(input: EtaInput): EtaResult {
 
   for (let i = nextStopIndex; i < route.stopIds.length; i++) {
     const remainingKm = Math.max(0, route.distancesKm[i] - assumedKm);
-    const stopsBetween = Math.max(0, i - nextStopIndex);
+
+    // Dwell is charged for stops the bus still has to *stand at* on the way.
+    // A vehicle waiting in the bay is already standing at `nextStopIndex`, and
+    // that wait is `departsInMin` — charging dwell for it as well would count
+    // the same stop twice.
+    const stopsBetween = Math.max(0, i - nextStopIndex - (departsInMin > 0 ? 1 : 0));
 
     const travelMin = (remainingKm / cruiseKmph) * 60;
     const etaMin = Math.max(

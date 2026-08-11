@@ -141,6 +141,21 @@ Worth stating plainly rather than being caught out on:
 - **Push notifications** need a registered service worker over HTTPS, so arrival alerts run over the live socket rather than mobile push in this build.
 - **Stop coordinates** are approximate town and stand positions, good to a few hundred metres, intended to be replaced by surveyed data from the transport department.
 
+## 🧪 Tests
+
+```bash
+npm test
+```
+
+67 tests covering the logic the product's credibility rests on. None of them need Postgres, Redis or the broker — that's deliberate, and the reason those rules live in plain functions in `packages/shared`.
+
+- **GPS validation** — impossible speeds, swapped coordinates, broken device clocks, GPS jitter over short intervals, and out-of-order readings from a dead-zone backlog.
+- **Confidence ladder** — the exact thresholds and output shapes from SRS §8.3, including that a bus is declared Signal Lost at 3 minutes while its ETA is still medium-confidence until 5.
+- **ETA engine** — road distance, dwell time, degradation with age, the 15-minute timetable fallback, and departures from the origin bay.
+- **Green Score & CO₂** — checked against the SRS's own worked examples: a new electric bus scores exactly **100**, a ten-year-old BS-IV diesel exactly **50**, and 25 km on an electric bus saves exactly **3.75 kg**.
+
+Two tests are regression guards for bugs that reached the running app: the dead-zone recovery cascade, and the empty terminus board.
+
 ## 🚧 Not built yet
 
 - **Driver app** — start/end trip, delay reporting, SOS
@@ -161,4 +176,6 @@ The SMS and phone-line (IVR) fallbacks are *shown* in the app — the stop scree
 | `npm run dev:sim` | Bus simulator (run **one** at a time) |
 | `npm run dev:web` | App on :5173 |
 | `npm run typecheck` | Typecheck every package |
+| `npm test` | Run the test suite |
+| `npm run dev:reset` | Clear stale live vehicle state from Redis |
 | `curl localhost:4000/api/v1/health` | Backend status + live GPS accept/reject counts |
