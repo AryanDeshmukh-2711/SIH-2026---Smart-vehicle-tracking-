@@ -8,8 +8,9 @@
  * corrupt every arrival time on that corridor.
  */
 
-import { BUSES, ROUTES, STOPS } from '@himgati/shared/data';
-import type { EmissionNorm, RouteCategory, StopKind } from '@himgati/shared';
+import { ALERTS, BUSES, ROUTES, STOPS } from '@himgati/shared/data';
+import type { AlertKind as PrismaAlertKind } from '@prisma/client';
+import type { AlertKind, EmissionNorm, RouteCategory, StopKind } from '@himgati/shared';
 import { prisma, connectDatabase, disconnectDatabase } from '../db/prisma.ts';
 import { logger } from '../config/logger.ts';
 
@@ -28,6 +29,16 @@ const NORM: Record<EmissionNorm, 'zero_tailpipe' | 'BS_VI' | 'BS_IV' | 'BS_III'>
   'BS-VI': 'BS_VI',
   'BS-IV': 'BS_IV',
   'BS-III': 'BS_III',
+};
+
+const ALERT_KIND: Record<AlertKind, PrismaAlertKind> = {
+  delay: 'delay',
+  cancellation: 'cancellation',
+  'route-change': 'route_change',
+  'road-closure': 'road_closure',
+  weather: 'weather',
+  'stop-change': 'stop_change',
+  arrival: 'arrival',
 };
 
 async function seedStops(): Promise<void> {
@@ -150,12 +161,41 @@ async function seedTrips(): Promise<void> {
   logger.info({ created }, 'seeded trips');
 }
 
+/**
+ * Service alerts, mapping onto GTFS-Realtime ServiceAlert entities.
+ *
+ * `read` is deliberately not stored: whether *you* have seen an alert is user
+ * state, not a property of the disruption itself.
+ */
+async function seedAlerts(): Promise<void> {
+  for (const alert of ALERTS) {
+    const data = {
+      kind: ALERT_KIND[alert.kind],
+      severity: alert.severity,
+      title: alert.title,
+      body: alert.body,
+      // The schema carries one route per alert; the first is the primary.
+      routeId: alert.affectedRouteIds[0] ?? null,
+      stopIds: alert.affectedStopIds,
+      source: alert.source,
+      issuedAt: new Date(alert.issuedAt),
+    };
+    await prisma.alert.upsert({
+      where: { id: alert.id },
+      create: { id: alert.id, ...data },
+      update: data,
+    });
+  }
+  logger.info({ count: ALERTS.length }, 'seeded alerts');
+}
+
 async function verify(): Promise<void> {
-  const [stops, routes, buses, trips] = await Promise.all([
+  const [stops, routes, buses, trips, alerts] = await Promise.all([
     prisma.stop.count(),
     prisma.route.count(),
     prisma.bus.count(),
     prisma.trip.count(),
+    prisma.alert.count(),
   ]);
 
   // A route without geometry silently breaks map-matching, so assert it here
@@ -173,6 +213,7 @@ async function verify(): Promise<void> {
       routes,
       buses,
       trips,
+      alerts,
       routesWithShape: Number(withShape),
       stopsWithGeom: Number(withGeom),
     },
@@ -189,6 +230,7 @@ async function main(): Promise<void> {
   await seedRoutes();
   await seedBuses();
   await seedTrips();
+  await seedAlerts();
   await verify();
 }
 

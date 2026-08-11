@@ -188,6 +188,57 @@ api.get('/routes/:routeId/live', async (req, res) => {
   return res.json(ok(out));
 });
 
+/* --------------------------------- alerts --------------------------------- */
+
+/** Postgres enum labels back to the wire values the client's types use. */
+const ALERT_KIND_OUT: Record<string, string> = {
+  route_change: 'route-change',
+  road_closure: 'road-closure',
+  stop_change: 'stop-change',
+};
+
+api.get('/alerts', async (req, res) => {
+  const query = z
+    .object({
+      routeId: z.string().optional(),
+      stopId: z.string().optional(),
+      limit: z.coerce.number().int().min(1).max(100).default(50),
+    })
+    .safeParse(req.query);
+
+  if (!query.success) return res.status(400).json(fail(query.error.issues[0].message));
+  const { routeId, stopId, limit } = query.data;
+
+  const rows = await prisma.alert.findMany({
+    where: {
+      ...(routeId ? { routeId } : {}),
+      ...(stopId ? { stopIds: { has: stopId } } : {}),
+      // Expired disruptions are history, not something to show a traveller.
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+    orderBy: { issuedAt: 'desc' },
+    take: limit,
+  });
+
+  return res.json(
+    ok(
+      rows.map((a) => ({
+        id: a.id,
+        kind: ALERT_KIND_OUT[a.kind] ?? a.kind,
+        severity: a.severity,
+        title: a.title,
+        body: a.body,
+        affectedRouteIds: a.routeId ? [a.routeId] : [],
+        affectedStopIds: a.stopIds,
+        issuedAt: a.issuedAt.toISOString(),
+        source: a.source,
+        // Whether *you* have seen it is client state, not a property of the alert.
+        read: false,
+      })),
+    ),
+  );
+});
+
 /* --------------------------------- buses ---------------------------------- */
 
 api.get('/buses/live', async (_req, res) => {

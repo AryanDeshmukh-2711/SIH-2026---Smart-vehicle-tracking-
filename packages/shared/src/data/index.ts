@@ -10,3 +10,4 @@
 export * from './stops';
 export * from './routes';
 export * from './buses';
+export * from './alerts';

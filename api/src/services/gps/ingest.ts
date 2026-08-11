@@ -13,8 +13,9 @@
  */
 
 import { SIGNAL_LOST_AFTER_SEC } from '@himgati/shared';
+import type { StopPrediction } from '@himgati/shared';
 import { env } from '../../config/env.ts';
-import { gpsLog } from '../../config/logger.ts';
+import { etaLog, gpsLog } from '../../config/logger.ts';
 import { prisma } from '../../db/prisma.ts';
 import { matchToRoute } from '../../db/geo.ts';
 import { network } from '../../state/network.ts';
@@ -272,11 +273,49 @@ export async function refreshAllEtas(): Promise<number> {
     const refreshed: LiveVehicle = { ...vehicle, status, nextStopIndex: eta.nextStopIndex };
 
     await setLive(refreshed);
-    if (vehicle.tripId) await cacheEta(vehicle.tripId, eta.predictions);
+    if (vehicle.tripId) {
+      await cacheEta(vehicle.tripId, eta.predictions);
+      await recordPrediction(vehicle.tripId, eta, ageSec);
+    }
 
     broadcastVehicle(refreshed, eta.predictions);
     updated++;
   }
 
   return updated;
+}
+
+/**
+ * Snapshot the next-stop prediction for later accuracy analysis.
+ *
+ * Only the next stop, and only on the refresh cadence rather than on every
+ * position: that is the prediction you can actually score, by comparing it to
+ * when the vehicle really arrived. Writing every stop on every fix would be tens
+ * of thousands of rows an hour and answer no question the first one doesn't.
+ */
+async function recordPrediction(
+  tripId: string,
+  eta: { predictions: StopPrediction[]; fromTimetable: boolean },
+  ageSec: number,
+): Promise<void> {
+  const next = eta.predictions[0];
+  if (!next) return;
+
+  try {
+    await prisma.etaPrediction.create({
+      data: {
+        tripId,
+        stopId: next.stopId,
+        etaSeconds: Math.round(next.etaMin * 60),
+        rangeLowSec: Math.round(next.rangeMin[0] * 60),
+        rangeHighSec: Math.round(next.rangeMin[1] * 60),
+        confidence: next.confidence,
+        dataAgeSec: Math.round(ageSec),
+        fromTimetable: eta.fromTimetable,
+      },
+    });
+  } catch (err) {
+    // Analytics must never break the live path.
+    etaLog.debug({ err: err instanceof Error ? err.message : err }, 'prediction snapshot failed');
+  }
 }
