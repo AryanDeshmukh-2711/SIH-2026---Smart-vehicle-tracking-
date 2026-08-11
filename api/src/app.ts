@@ -6,6 +6,8 @@ import { corsOrigins } from './config/env.ts';
 import { logger } from './config/logger.ts';
 import { api } from './http/routes.ts';
 import { auth } from './http/auth.routes.ts';
+import { driver } from './http/driver.routes.ts';
+import { admin } from './http/admin.routes.ts';
 import { generalLimit } from './http/middleware/rateLimit.ts';
 
 export function createApp() {
@@ -35,6 +37,8 @@ export function createApp() {
 
   app.use('/api/v1', generalLimit);
   app.use('/api/v1/auth', auth);
+  app.use('/api/v1/driver', driver);
+  app.use('/api/v1/admin', admin);
   app.use('/api/v1', api);
 
   app.use((_req, res) => res.status(404).json({ data: null, error: { message: 'not found' } }));

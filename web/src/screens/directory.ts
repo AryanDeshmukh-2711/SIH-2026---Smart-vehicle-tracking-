@@ -41,6 +41,14 @@ export const SCREEN_DIRECTORY = [
     ],
   },
   {
+    group: 'Operators',
+    items: [
+      { to: '/operator/login', label: 'Staff sign in' },
+      { to: '/driver', label: 'Driver app' },
+      { to: '/admin', label: 'Fleet dashboard' },
+    ],
+  },
+  {
     group: 'Reference',
     items: [{ to: '/states', label: 'UI states' }],
   },

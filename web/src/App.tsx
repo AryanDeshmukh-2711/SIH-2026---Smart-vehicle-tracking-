@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { AppStateProvider } from '@/store/AppState';
+import { AuthProvider, RequireRole } from '@/store/AuthContext';
 
 import { HomeScreen } from '@/screens/Home';
 import { SearchScreen } from '@/screens/Search';
@@ -20,11 +21,15 @@ import { NotificationsScreen } from '@/screens/Notifications';
 import { ProfileScreen } from '@/screens/Profile';
 import { OfflineScreen } from '@/screens/Offline';
 import { UiStatesScreen } from '@/screens/UiStates';
+import { OperatorLoginScreen } from '@/screens/operator/Login';
+import { DriverHomeScreen } from '@/screens/operator/DriverHome';
+import { AdminDashboardScreen } from '@/screens/operator/AdminDashboard';
 
 export function App() {
   return (
     <AppStateProvider>
-      <BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
         <Routes>
           <Route element={<AppShell />}>
             <Route path="/" element={<HomeScreen />} />
@@ -49,10 +54,31 @@ export function App() {
             <Route path="/offline" element={<OfflineScreen />} />
 
             <Route path="/states" element={<UiStatesScreen />} />
+
+            {/* Operator surfaces. Gated here for convenience only — the API
+                enforces the same roles, which is the boundary that counts. */}
+            <Route path="/operator/login" element={<OperatorLoginScreen />} />
+            <Route
+              path="/driver"
+              element={
+                <RequireRole roles={['driver', 'depot_manager', 'admin', 'transport_authority']}>
+                  <DriverHomeScreen />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <RequireRole roles={['depot_manager', 'admin', 'transport_authority']}>
+                  <AdminDashboardScreen />
+                </RequireRole>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </AuthProvider>
     </AppStateProvider>
   );
 }

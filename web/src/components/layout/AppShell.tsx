@@ -8,7 +8,9 @@ import { cn } from '@/lib/cn';
 import { SCREEN_DIRECTORY } from '@/screens/directory';
 
 /** Routes that own the whole frame and hide the tab bar. */
-const FULL_BLEED = ['/map', '/scan'];
+// Operator screens are their own product; the passenger tab bar has no place
+// on a driver's dashboard-mounted phone.
+const FULL_BLEED = ['/map', '/scan', '/driver', '/admin', '/operator'];
 
 /* ------------------------------- status bar ------------------------------- */
 

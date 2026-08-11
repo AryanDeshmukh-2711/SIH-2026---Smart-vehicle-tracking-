@@ -191,12 +191,29 @@ In development the OTP comes back in the response as `devCode`, so the flow work
 
 ---
 
+## 🚦 Driver app & fleet dashboard
+
+Both live at `/driver` and `/admin` in the same app, gated by role. Sign in at **`/operator/login`**.
+
+**Driver** (SRS FR-34..38) — one screen, one primary button, nothing to type while driving.
+
+- Start / End trip, with the phone reporting position as a **backup tracker**. The SRS names "GPS box missing or broken" as a live risk and this as the mitigation; those fixes run through the identical validation and map-matching as the hardware feed.
+- One-tap crowd level and delay reporting, straight onto the operator channel.
+- Breakdown — cancels the service and pushes an alert to every waiting passenger.
+- SOS — raises the depot with the last known position, and deliberately never fails validation into a dead end.
+- The driver can always see *whether the depot can see them*, because a tracker that has silently stopped is worse than one that was never on.
+
+**Depot / authority** (FR-39..43) — ordered around the two questions the job asks: what is wrong now, and what has been wrong lately.
+
+- Live fleet, refreshed every five seconds, **worst first** — cancelled, then signal-lost, then delayed.
+- Punctuality per route over seven days. "Late" is five minutes, the *same* threshold the passenger app uses to badge a service, so the report and the app cannot disagree in a review meeting.
+- Publish and withdraw service alerts, attributed to the person publishing them.
+- Bulk route import by CSV.
+- Append-only audit log of every privileged action and sign-in.
+
 ## 🚧 Not built yet
 
-- **Driver app** — start/end trip, delay reporting, SOS
-- **Admin dashboard** — fleet map, route editing, punctuality reports
-
-The SMS and phone-line (IVR) fallbacks are *shown* in the app — the stop screen renders the exact text reply a gateway would send — but the telecom gateway itself is outside this build.
+The SMS and phone-line (IVR) fallbacks are *shown* in the app — the stop screen renders the exact text reply a gateway would send — but the telecom gateway itself is outside this build. Route and stop creation is via CSV import rather than a full editor.
 
 ---
 
