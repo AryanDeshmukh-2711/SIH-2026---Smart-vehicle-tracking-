@@ -2,123 +2,163 @@
 
 ### Know where your bus is. Know when it'll reach you. Know how clean it is.
 
-HimGati is a smart bus-tracking app built for Himachal Pradesh — a place where GPS gets confused by the mountains and mobile signal disappears for miles at a time. So instead of just showing a dot on a map and hoping for the best, HimGati tells you the *truth*: exactly how sure it is about where your bus is, and gives you five other ways to find your stop when GPS gives up.
+HimGati is a smart bus-tracking platform built for Himachal Pradesh — a place where GPS gets confused by the mountains and mobile signal disappears for miles at a time. So instead of showing a dot on a map and hoping for the best, HimGati tells you the *truth*: exactly how sure it is about where your bus is, and gives you five other ways to find your stop when GPS gives up.
 
-Built for **SIH 2026**.
+Everything runs in the browser. Built for **SIH 2026**.
 
 ---
 
-## 🚀 Try it yourself (takes 2 minutes)
+## 🚀 Run it yourself
 
-You don't need to know how to code. Just follow these steps:
+You'll need [Node.js](https://nodejs.org) (LTS) and [Docker Desktop](https://www.docker.com/products/docker-desktop/). Then, from the project folder:
 
-1. **Install [Node.js](https://nodejs.org)** if you don't already have it (pick the "LTS" version, click next through the installer).
-2. **Open a terminal** in this folder and run:
-   ```bash
-   npm install
-   ```
-   *(This downloads everything the app needs — takes about a minute.)*
-3. **Start the app:**
-   ```bash
-   npm run dev
-   ```
-4. **Open your browser** and go to the address it shows you — usually **http://localhost:5173**
+```bash
+npm install
+cp .env.example .env
+npm run infra:up
+```
 
-That's it — the app is now running on your computer, exactly as it would on a phone.
+That starts the database, cache and message broker in Docker. Now set up the data:
+
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+Then open **three terminals** and run one command in each:
+
+```bash
+npm run dev:api
+```
+```bash
+npm run dev:sim
+```
+```bash
+npm run dev:web
+```
+
+Open **http://localhost:5173** — buses will be moving.
+
+> **What each one does:** `dev:api` is the backend. `dev:sim` pretends to be 17 buses driving around Himachal and reporting their GPS — real buses would do this themselves. `dev:web` is the app you look at.
 
 ### 👀 Where to start looking
 
-Once it's open, try this in order:
-
 | Do this | You'll see |
 |---|---|
-| Look at the **Home** screen | Buses arriving near you, right now, with live countdown timers |
-| Tap **"Track bus"** or the map icon | A live map with buses actually moving along their routes |
-| Tap any bus card | Full details — is it electric, how clean is it, what's it like inside |
-| Tap **"GPS not working?"** on Home | Six different ways to tell the app where you are, without needing GPS |
-| Go to **Explore** | Tourist spots around Himachal, each one telling you exactly which bus gets you there |
-| Go to **"Build a day plan"** | Tell it what you like doing and how much time you have — it plans your whole day using buses |
+| Look at the **Home** screen | Buses arriving near you with live countdown timers |
+| Tap **"Track bus"** | A live map with buses actually moving along real routes |
+| Tap any bus | Full detail — fuel type, cleanliness score, what's onboard |
+| Tap **"GPS not working?"** | Six ways to find your location without GPS |
+| Open **Explore** | Places worth visiting, each with the bus that gets you there |
+| Open **"Build a day plan"** | Tell it what you like; it plans your day around bus timings |
 
-💡 **Tip:** Watch bus **HP-01-3312** on the map for about a minute — it drives into a mountain valley with no signal, and you'll see the app honestly say *"Signal lost"* instead of pretending it still knows where the bus is. That's the whole point of the app.
-
----
-
-## 🧩 What problem does this actually solve?
-
-If you've ever waited at a bus stop in the hills, you know the feeling: *has the bus already left? Is it 5 minutes away or 50? Did a landslide cancel it?*
-
-Every existing transit app struggles here for two reasons — **the mountains block GPS**, and **mobile network just disappears** for long stretches. HimGati is designed around that reality instead of ignoring it.
-
-**1. GPS is just one option, not the only one.**
-You can find your bus stop by GPS, by searching the stop name, by typing a nearby landmark ("near the temple"), by dropping a pin on the map, by scanning a QR code at the stop, or just by typing the bus's route number — no location needed at all.
-
-**2. The app never fakes confidence it doesn't have.**
-If the bus reported its position 10 seconds ago, you get a precise "7 min". If it's been 6 minutes of silence, you get an honest range like "8–14 min" instead of a made-up exact number. If the bus goes quiet for too long, the app plainly says **"Signal lost"** and tells you the last place it was seen — rather than freezing the bus icon and letting you believe it's still live (which is what most apps do).
+💡 **The one to watch:** bus **HP-01-3312** on route 42B. A few minutes in, it drives into the Pandoh–Aut gorge between Mandi and Bhuntar, where there's genuinely no mobile coverage. You'll watch it go **On time → Signal lost → widening estimate → printed timetable**, then snap back when it reconnects and uploads everything it recorded while dark. That behaviour is the whole point of the project.
 
 ---
 
-## ✨ Everything in the app
+## 🧩 The problem, and what we do about it
 
-**Get around**
-Home · Search (understands plain sentences like *"bus from Shimla to Manali tomorrow morning"*) · Journey planner · Live bus map
+If you've waited at a bus stop in the hills you know the feeling: *has it already left? Is it 5 minutes away or 50? Did a landslide cancel it?*
 
-**About your bus**
-Bus details (fuel type, cleanliness score, seating) · Passenger reviews · Bus stop details · Six ways to find your location · QR code scanner
+Every transit app struggles here for two reasons — **mountains block GPS** and **the network disappears**. HimGati is designed around that instead of pretending otherwise.
 
-**Explore Himachal**
-Browse attractions, cafés & viewpoints · Full destination pages that tell you exactly how to get there by bus · An itinerary builder that plans your whole day around bus timings
+**1. GPS is one option, not the only one.**
+Find your stop by GPS, stop name, a nearby landmark, a pin on the map, the QR code on the stop's plate, or just the bus's route number. Each method reports the accuracy it can honestly claim — a QR scan is ±5 m, a landmark is ±220 m — and a GPS fix worse than 500 m is *rejected*, because a vague fix that sends you to the wrong stop is worse than no fix at all.
 
-**Your account**
-Trip history · Your environmental impact (CO₂ saved by taking the bus) · Notifications for delays & disruptions · Profile & preferences · Offline mode for when there's no signal at all
+**2. We never show a confidence we don't have.**
+Arrival times change *shape* as the data ages. This is enforced in the backend, not the UI:
 
----
+| Time since the bus last reported | What you see |
+|---|---|
+| under 1 minute | `7 min` |
+| under 5 minutes | `7 min (±2)` |
+| over 5 minutes | `8–14 min` |
+| over 3 minutes silent | `Signal lost — last seen at Mandi, 4 min ago` |
+| over 15 minutes silent | falls back to the printed timetable |
 
-## 🌱 The numbers are real, not just for show
-
-- **Green Score** — every bus gets a score out of 100 based on its fuel type, emission standard, and age. The app shows you exactly how that score was calculated, not just the final number.
-- **CO₂ saved** — calculated by comparing the bus you took against driving the same distance alone in a car. Every trip in your history adds up into your personal impact dashboard.
-- **No greenwashing** — an older, more polluting bus is clearly marked as such, in red. The app doesn't pretend every bus is eco-friendly just because it's a bus.
-
----
-
-## 🎬 Why the buses actually move on the map
-
-Real buses obviously aren't driving around for this demo — so a small simulator plays the part of the live tracking system, moving buses along their real routes in real time (sped up, so a 7-hour journey plays out in minutes). A couple of buses are scripted to always show interesting things: one loses signal in a mountain pass and comes back, one is running late, one is cancelled. That way, every time you open the app, there's always something worth watching.
+Other apps freeze the bus icon and let you believe it's live. Telling the truth about staleness is the feature.
 
 ---
 
-## 🛠️ For developers
+## 🏗 How it's built
 
-<details>
-<summary>Click to expand: tech stack, architecture, and what's not built</summary>
-
-### Stack
-React 19 · TypeScript (strict) · Vite 6 · Tailwind v4 · React Router 7 · Leaflet + OpenStreetMap · Framer Motion · vite-plugin-pwa
-
-### How it's structured
 ```
-src/
-  types/         Domain model — matches the shape of GTFS + GTFS-Realtime
-  lib/           Green Score & CO₂ math · ETA confidence rules · geo helpers
-  data/          Stops, routes, fleet, places, trips, reviews, alerts
-  services/
-    client.ts    Every network call goes through here — swap mock data for a
-                 real API by changing one config line
-    adapters/    Ready-made mappings from GTFS/GTFS-RT feeds to the app's data
-    simulation/  The live-bus simulator described above
-  components/    Design system, transit widgets, map, layout
-  screens/       Every screen in the app
+Bus GPS  ──MQTT──▶  validate  ──▶  map-match   ──▶  Redis      ──▶  ETA engine
+(simulator)         reject bad     onto the road    live state       + confidence
+                    readings       (PostGIS)                              │
+                                                                    Socket.IO
+                          Postgres ◀── history                            │
+                                                                    the web app
 ```
 
-Every "live" data call is written against the same interface a real backend would use (GTFS static + GTFS-Realtime + AIS-140 vehicle trackers), so plugging in a real transport department feed later is a matter of swapping the data source, not rewriting screens.
+A **modular monolith**, not fifteen microservices. Everything is one Node process today; the ETA engine, GPS ingestion and notification workers are separated cleanly enough to split out later if load ever demands it.
 
-### Data used
-8 real HRTC bus routes across Shimla, Mandi, Kullu and Kangra districts, 26 real stops, and 16 buses with realistic fuel/age/emission mixes (including older, more polluting ones — deliberately, so the "honest emissions" feature has something real to show).
+| Piece | Choice | Why |
+|---|---|---|
+| Database | PostgreSQL + **PostGIS** | The data is deeply relational, and "which stops are within 2 km" is a spatial query |
+| Live state | **Redis** | Where a bus is *right now* is disposable and read constantly |
+| GPS intake | **MQTT** | What AIS-140 vehicle trackers actually speak; survives a flaky link far better than an HTTP request every 10 seconds |
+| Live updates | **Socket.IO** | Polling every bus would blow past the SRS's 5 MB/hour data budget |
+| Frontend | React + Vite, installable PWA | One URL, works on any phone, caches for offline |
 
-### What's out of scope for this build
-- **Driver app** (trip start/end, delay reporting, SOS)
-- **Admin/depot dashboard** (fleet management, route editing)
+```
+himgati/
+├── api/                 Backend — GPS pipeline, ETA engine, REST + realtime
+├── web/                 The app you look at
+├── packages/shared/     Rules used by BOTH sides, so they can never disagree
+├── infra/               MQTT broker config
+└── docker-compose.yml   Postgres + Redis + MQTT
+```
 
-The SMS and phone-line (IVR) access methods are shown in the app — you can see exactly what a text message reply would look like — but the actual telecom gateway is backend infrastructure outside this build.
+**Why `packages/shared` matters:** the Green Score formula, the CO₂ factors, the confidence thresholds and the 8-route dataset live in exactly one file each. The backend computes a bus's score and the frontend displays it using *the same function* — they cannot drift apart.
 
-</details>
+---
+
+## 🌱 The numbers are real arithmetic
+
+- **Green Score** — `fuel×50% + emission norm×35% + age×15%`. The bus screen shows all three components and their weights, so a "94" can be challenged and checked.
+- **CO₂ saved** — `(car − bus) × distance`, summed from your actual trip history rather than stored, so the monthly total always reconciles with the journeys listed under it. Every assumption is printed on the page.
+- **No greenwashing** — BS-IV and BS-III buses get warning and error colours and are described as "superseded" and "obsolete". A bus whose operator never filed an emission record is labelled *estimated*, not silently guessed.
+
+---
+
+## 🔌 Swapping in real buses
+
+The simulator publishes to the same MQTT topic real hardware would (`him_gati/bus/{id}/location`). Nothing downstream knows the difference — validation, map-matching and prediction all run identically. Point a real AIS-140 fleet at the broker and the simulator simply stops being needed.
+
+Two settings in `.env` exist purely for the demo and should change in production:
+
+- `SIM_TIME_SCALE=12` compresses time so a 7-hour Shimla–Manali run is watchable. Real time is `1`.
+- `GPS_MAX_SPEED_KMPH=1440` is raised only because of that compression — a bus covering 12 minutes of road per real minute genuinely implies 12× the speed, and the validator (which has no idea it's being fed a simulation) would correctly throw every reading away. **The real-world value is 120.**
+
+---
+
+## ⚠️ Known limitations
+
+Worth stating plainly rather than being caught out on:
+
+- **A web driver app can't track GPS with the screen off.** Browser tabs suspend when backgrounded. The driver device must keep the tab in the foreground (we use a Screen Wake Lock). A native app is the only real fix.
+- **Push notifications** need a registered service worker over HTTPS, so arrival alerts run over the live socket rather than mobile push in this build.
+- **Stop coordinates** are approximate town and stand positions, good to a few hundred metres, intended to be replaced by surveyed data from the transport department.
+
+## 🚧 Not built yet
+
+- **Driver app** — start/end trip, delay reporting, SOS
+- **Admin dashboard** — fleet map, route editing, punctuality reports
+
+The SMS and phone-line (IVR) fallbacks are *shown* in the app — the stop screen renders the exact text reply a gateway would send — but the telecom gateway itself is outside this build.
+
+---
+
+## 🛠 Commands
+
+| Command | What it does |
+|---|---|
+| `npm run infra:up` / `infra:down` | Start / stop Docker services |
+| `npm run db:migrate` | Apply database migrations |
+| `npm run db:seed` | Load routes, stops and buses |
+| `npm run dev:api` | Backend on :4000 |
+| `npm run dev:sim` | Bus simulator (run **one** at a time) |
+| `npm run dev:web` | App on :5173 |
+| `npm run typecheck` | Typecheck every package |
+| `curl localhost:4000/api/v1/health` | Backend status + live GPS accept/reject counts |

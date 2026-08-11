@@ -1,0 +1,63 @@
+# HimGati local infrastructure.
+#
+#   docker compose up -d
+#
+# Three services, matching the SRS stack: PostgreSQL with PostGIS for
+# routes/stops/history, Redis for live vehicle state, and an MQTT broker for
+# GPS intake from AIS-140 devices (or, locally, the bus simulator).
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: himgati-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-himgati}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-himgati}
+      POSTGRES_DB: ${POSTGRES_DB:-himgati}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - himgati-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-himgati} -d ${POSTGRES_DB:-himgati}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: himgati-redis
+    restart: unless-stopped
+    # Live vehicle state is rebuildable from the GPS feed, so persistence is off
+    # deliberately — Redis here is a cache, not a system of record.
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: himgati-mqtt
+    restart: unless-stopped
+    ports:
+      - '${MQTT_PORT:-1883}:1883'
+      - '${MQTT_WS_PORT:-9001}:9001'
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'mosquitto_sub -h 127.0.0.1 -p 1883 -t healthcheck -C 1 -W 2 >/dev/null 2>&1 || exit 0',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  himgati-pgdata:

@@ -1,0 +1,17 @@
+{
+  "name": "@himgati/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure domain logic shared by the HimGati web client and API",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./eta": "./src/eta.ts",
+    "./green": "./src/green.ts",
+    "./geo": "./src/geo.ts",
+    "./data": "./src/data/index.ts"
+  }
+}

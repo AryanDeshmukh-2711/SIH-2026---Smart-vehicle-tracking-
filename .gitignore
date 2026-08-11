@@ -8,3 +8,4 @@ dev-dist
 .env.local
 .vite
 *.log
+.claude/

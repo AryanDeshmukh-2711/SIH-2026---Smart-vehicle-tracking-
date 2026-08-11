@@ -1,0 +1,46 @@
+{
+  "name": "@himgati/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HimGati backend \u2014 GPS ingestion, ETA engine and realtime transit API",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "simulator": "tsx src/simulator/run.ts",
+    "db:generate": "dotenv -e ../.env -- prisma generate",
+    "db:migrate": "dotenv -e ../.env -- prisma migrate dev",
+    "db:deploy": "dotenv -e ../.env -- prisma migrate deploy",
+    "db:push": "dotenv -e ../.env -- prisma db push",
+    "db:seed": "tsx src/seed/run.ts",
+    "db:studio": "dotenv -e ../.env -- prisma studio",
+    "typecheck": "tsc --noEmit"
+  },
+  "prisma": {
+    "seed": "tsx src/seed/run.ts"
+  },
+  "dependencies": {
+    "@himgati/shared": "*",
+    "@prisma/client": "^6.3.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.4.2",
+    "mqtt": "^5.10.3",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
+    "socket.io": "^4.8.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.7",
+    "dotenv-cli": "^11.0.0",
+    "pino-pretty": "^13.0.0",
+    "prisma": "^6.3.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

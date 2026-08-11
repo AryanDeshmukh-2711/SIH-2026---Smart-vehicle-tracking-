@@ -1,0 +1,296 @@
+// HimGati data model.
+//
+// Prisma owns the relational tables; PostGIS owns the geometry. Geometry columns
+// are declared as `Unsupported` because Prisma has no native geometry type — they
+// are created and indexed by the SQL migration, and read through raw queries in
+// `src/db/geo.ts`. That split is deliberate: Prisma for ergonomic CRUD, PostGIS
+// for the spatial work it is actually good at (ST_DWithin, ST_LineLocatePoint).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Extensions are deliberately NOT declared here. The postgis Docker image ships
+// postgis, postgis_topology and postgis_tiger_geocoder pre-installed; letting
+// Prisma manage them makes every migration look like schema drift. PostGIS owns
+// its extensions, Prisma owns the tables.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// A physical boarding point. `code` is what is printed on the QR plate.
+model Stop {
+  id        String   @id
+  code      String   @unique
+  name      String
+  nameHi    String   @map("name_hi")
+  kind      StopKind
+  town      String
+  lat       Float
+  lng       Float
+  /// PostGIS Point(4326). Kept alongside lat/lng so simple reads avoid a raw query.
+  geom      Unsupported("geometry(Point, 4326)")?
+  landmarks String[]
+  platforms String[]
+  amenities String[]
+  /// 4-digit code texted to the SMS shortcode (SRS §8.6).
+  smsCode   String   @map("sms_code")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  routeStops    RouteStop[]
+  etaPredictions EtaPrediction[]
+
+  @@index([town])
+  @@map("stops")
+}
+
+enum StopKind {
+  isbt
+  bus_stand
+  stop
+  halt
+
+  @@map("stop_kind")
+}
+
+/// A named service pattern. The shape is the drawn/road alignment.
+model Route {
+  id                String        @id
+  shortName         String        @map("short_name")
+  longName          String        @map("long_name")
+  origin            String
+  destination       String
+  category          RouteCategory
+  operator          String
+  /// PostGIS LineString(4326) following the road alignment.
+  shape             Unsupported("geometry(LineString, 4326)")?
+  /// Published road distance in km. Shape length is coarser, so this is authoritative.
+  distanceKm        Float         @map("distance_km")
+  typicalDurationMin Int          @map("typical_duration_min")
+  fareInr           Int           @map("fare_inr")
+  /// Scheduled departures from the origin, "HH:mm". The offline timetable.
+  departures        String[]
+  active            Boolean       @default(true)
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  routeStops RouteStop[]
+  buses      Bus[]
+  trips      Trip[]
+  alerts     Alert[]
+
+  @@index([shortName])
+  @@map("routes")
+}
+
+enum RouteCategory {
+  ordinary
+  express
+  deluxe
+  volvo
+  local
+
+  @@map("route_category")
+}
+
+/// Ordered stop pattern, with the cumulative road distance to each stop.
+model RouteStop {
+  id         String @id @default(cuid())
+  routeId    String @map("route_id")
+  stopId     String @map("stop_id")
+  sequence   Int
+  /// Cumulative road distance from the origin, km.
+  distanceKm Float  @map("distance_km")
+
+  route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  stop  Stop  @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@unique([routeId, sequence])
+  @@index([stopId])
+  @@map("route_stops")
+}
+
+/// Fleet master. Fuel, norm and year come from the vehicle registration record.
+model Bus {
+  id                   String     @id
+  registration         String     @unique
+  operator             String
+  routeId              String     @map("route_id")
+  fuel                 FuelType
+  norm                 EmissionNorm
+  /// Year of manufacture — drives the age component of the Green Score.
+  year                 Int
+  seats                Int
+  wheelchairAccessible Boolean    @default(false) @map("wheelchair_accessible")
+  amenities            String[]
+  /// True when fuel/norm were inferred from the year rather than a filed record.
+  emissionDataEstimated Boolean   @default(false) @map("emission_data_estimated")
+  active               Boolean    @default(true)
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @updatedAt @map("updated_at")
+
+  route     Route         @relation(fields: [routeId], references: [id])
+  trips     Trip[]
+  locations BusLocation[]
+
+  @@index([routeId])
+  @@map("buses")
+}
+
+enum FuelType {
+  electric
+  cng
+  hybrid
+  diesel
+
+  @@map("fuel_type")
+}
+
+enum EmissionNorm {
+  zero_tailpipe
+  BS_VI
+  BS_IV
+  BS_III
+
+  @@map("emission_norm")
+}
+
+/// One run of a bus along a route.
+model Trip {
+  id          String     @id @default(cuid())
+  busId       String     @map("bus_id")
+  routeId     String     @map("route_id")
+  /// Scheduled departure from the origin, "HH:mm".
+  scheduledAt String     @map("scheduled_at")
+  startedAt   DateTime?  @map("started_at")
+  endedAt     DateTime?  @map("ended_at")
+  status      TripStatus @default(scheduled)
+  /// Minutes behind schedule; negative means early.
+  delayMin    Int        @default(0) @map("delay_min")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  bus            Bus             @relation(fields: [busId], references: [id])
+  route          Route           @relation(fields: [routeId], references: [id])
+  locations      BusLocation[]
+  etaPredictions EtaPrediction[]
+
+  @@index([routeId, status])
+  @@index([busId, status])
+  @@map("trips")
+}
+
+enum TripStatus {
+  scheduled
+  running
+  delayed
+  cancelled
+  signal_lost
+  ended
+
+  @@map("trip_status")
+}
+
+/// Historical GPS. Live state lives in Redis; this is the learning record.
+model BusLocation {
+  id           BigInt   @id @default(autoincrement())
+  busId        String   @map("bus_id")
+  tripId       String?  @map("trip_id")
+  lat          Float
+  lng          Float
+  geom         Unsupported("geometry(Point, 4326)")?
+  /// Position after snapping to the route shape.
+  matchedLat   Float?   @map("matched_lat")
+  matchedLng   Float?   @map("matched_lng")
+  /// Distance travelled along the route at this fix, km.
+  progressKm   Float?   @map("progress_km")
+  speedKmph    Float    @map("speed_kmph")
+  heading      Float
+  accuracyM    Float    @map("accuracy_m")
+  /// Device clock, as reported.
+  recordedAt   DateTime @map("recorded_at")
+  /// Server clock on ingest — the gap reveals buffered/dead-zone uploads.
+  receivedAt   DateTime @default(now()) @map("received_at")
+  /// True when the reading arrived late from a device's offline buffer.
+  buffered     Boolean  @default(false)
+  source       String   @default("mqtt")
+
+  bus  Bus   @relation(fields: [busId], references: [id], onDelete: Cascade)
+  trip Trip? @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([busId, recordedAt])
+  @@index([tripId, recordedAt])
+  @@map("bus_locations")
+}
+
+/// Snapshot of a computed arrival, kept for accuracy analysis after the fact.
+model EtaPrediction {
+  id           BigInt     @id @default(autoincrement())
+  tripId       String     @map("trip_id")
+  stopId       String     @map("stop_id")
+  etaSeconds   Int        @map("eta_seconds")
+  rangeLowSec  Int        @map("range_low_sec")
+  rangeHighSec Int        @map("range_high_sec")
+  confidence   Confidence
+  /// Age of the GPS fix the prediction was derived from, seconds.
+  dataAgeSec   Int        @map("data_age_sec")
+  /// True when the live fix was too stale and the timetable answered instead.
+  fromTimetable Boolean   @default(false) @map("from_timetable")
+  calculatedAt DateTime   @default(now()) @map("calculated_at")
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  stop Stop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, stopId, calculatedAt])
+  @@map("eta_predictions")
+}
+
+enum Confidence {
+  high
+  medium
+  low
+
+  @@map("confidence")
+}
+
+/// Service disruption, mapping onto a GTFS-Realtime ServiceAlert.
+model Alert {
+  id         String        @id @default(cuid())
+  kind       AlertKind
+  severity   AlertSeverity
+  title      String
+  body       String
+  routeId    String?       @map("route_id")
+  stopIds    String[]      @map("stop_ids")
+  /// Who issued it — a disaster-authority notice is not a crowd report.
+  source     String
+  issuedAt   DateTime      @default(now()) @map("issued_at")
+  expiresAt  DateTime?     @map("expires_at")
+
+  route Route? @relation(fields: [routeId], references: [id], onDelete: SetNull)
+
+  @@index([routeId, issuedAt])
+  @@map("alerts")
+}
+
+enum AlertKind {
+  delay
+  cancellation
+  route_change
+  road_closure
+  weather
+  stop_change
+  arrival
+
+  @@map("alert_kind")
+}
+
+enum AlertSeverity {
+  info
+  warning
+  severe
+
+  @@map("alert_severity")
+}

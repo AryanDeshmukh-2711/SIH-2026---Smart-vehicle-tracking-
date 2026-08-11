@@ -1,34 +1,23 @@
 {
   "name": "himgati",
-  "private": true,
   "version": "1.0.0",
-  "type": "module",
-  "description": "HimGati — Smart public transport & tourism platform for Himachal Pradesh",
+  "private": true,
+  "description": "HimGati — smart public transport & tourism platform for Himachal Pradesh",
+  "workspaces": [
+    "packages/*",
+    "web",
+    "api"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "framer-motion": "^12.4.7",
-    "leaflet": "^1.9.4",
-    "lucide-react": "^0.475.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-leaflet": "^5.0.0",
-    "react-router-dom": "^7.2.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.0.9",
-    "@types/leaflet": "^1.9.16",
-    "@types/node": "^26.2.0",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
-    "@vitejs/plugin-react": "^4.3.4",
-    "tailwindcss": "^4.0.9",
-    "typescript": "^5.7.3",
-    "vite": "^6.2.0",
-    "vite-plugin-pwa": "^0.21.1"
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:reset": "docker compose down -v && docker compose up -d",
+    "db:migrate": "npm run db:migrate --workspace @himgati/api",
+    "db:seed": "npm run db:seed --workspace @himgati/api",
+    "dev:api": "npm run dev --workspace @himgati/api",
+    "dev:sim": "npm run simulator --workspace @himgati/api",
+    "dev:web": "npm run dev --workspace @himgati/web",
+    "build": "npm run build --workspace @himgati/web",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }
