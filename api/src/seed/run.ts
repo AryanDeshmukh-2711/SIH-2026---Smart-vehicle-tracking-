@@ -13,6 +13,7 @@ import type { AlertKind as PrismaAlertKind } from '@prisma/client';
 import type { AlertKind, EmissionNorm, RouteCategory, StopKind } from '@himgati/shared';
 import { prisma, connectDatabase, disconnectDatabase } from '../db/prisma.ts';
 import { logger } from '../config/logger.ts';
+import { assignDriversToTrips, seedAccounts } from './accounts.ts';
 
 /* ------------------------- enum mapping (TS → SQL) ------------------------ */
 // Postgres enum labels cannot contain '-', so the wire values are remapped.
@@ -190,12 +191,13 @@ async function seedAlerts(): Promise<void> {
 }
 
 async function verify(): Promise<void> {
-  const [stops, routes, buses, trips, alerts] = await Promise.all([
+  const [stops, routes, buses, trips, alerts, users] = await Promise.all([
     prisma.stop.count(),
     prisma.route.count(),
     prisma.bus.count(),
     prisma.trip.count(),
     prisma.alert.count(),
+    prisma.user.count(),
   ]);
 
   // A route without geometry silently breaks map-matching, so assert it here
@@ -214,6 +216,7 @@ async function verify(): Promise<void> {
       buses,
       trips,
       alerts,
+      users,
       routesWithShape: Number(withShape),
       stopsWithGeom: Number(withGeom),
     },
@@ -231,6 +234,8 @@ async function main(): Promise<void> {
   await seedBuses();
   await seedTrips();
   await seedAlerts();
+  await seedAccounts();
+  await assignDriversToTrips();
   await verify();
 }
 

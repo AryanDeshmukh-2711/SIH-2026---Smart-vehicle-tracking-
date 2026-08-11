@@ -21,10 +21,10 @@ datasource db {
 
 /// A physical boarding point. `code` is what is printed on the QR plate.
 model Stop {
-  id        String   @id
-  code      String   @unique
+  id        String                                @id
+  code      String                                @unique
   name      String
-  nameHi    String   @map("name_hi")
+  nameHi    String                                @map("name_hi")
   kind      StopKind
   town      String
   lat       Float
@@ -35,11 +35,11 @@ model Stop {
   platforms String[]
   amenities String[]
   /// 4-digit code texted to the SMS shortcode (SRS §8.6).
-  smsCode   String   @map("sms_code")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  smsCode   String                                @map("sms_code")
+  createdAt DateTime                              @default(now()) @map("created_at")
+  updatedAt DateTime                              @updatedAt @map("updated_at")
 
-  routeStops    RouteStop[]
+  routeStops     RouteStop[]
   etaPredictions EtaPrediction[]
 
   @@index([town])
@@ -57,24 +57,24 @@ enum StopKind {
 
 /// A named service pattern. The shape is the drawn/road alignment.
 model Route {
-  id                String        @id
-  shortName         String        @map("short_name")
-  longName          String        @map("long_name")
-  origin            String
-  destination       String
-  category          RouteCategory
-  operator          String
+  id                 String                                     @id
+  shortName          String                                     @map("short_name")
+  longName           String                                     @map("long_name")
+  origin             String
+  destination        String
+  category           RouteCategory
+  operator           String
   /// PostGIS LineString(4326) following the road alignment.
-  shape             Unsupported("geometry(LineString, 4326)")?
+  shape              Unsupported("geometry(LineString, 4326)")?
   /// Published road distance in km. Shape length is coarser, so this is authoritative.
-  distanceKm        Float         @map("distance_km")
-  typicalDurationMin Int          @map("typical_duration_min")
-  fareInr           Int           @map("fare_inr")
+  distanceKm         Float                                      @map("distance_km")
+  typicalDurationMin Int                                        @map("typical_duration_min")
+  fareInr            Int                                        @map("fare_inr")
   /// Scheduled departures from the origin, "HH:mm". The offline timetable.
-  departures        String[]
-  active            Boolean       @default(true)
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
+  departures         String[]
+  active             Boolean                                    @default(true)
+  createdAt          DateTime                                   @default(now()) @map("created_at")
+  updatedAt          DateTime                                   @updatedAt @map("updated_at")
 
   routeStops RouteStop[]
   buses      Bus[]
@@ -114,22 +114,22 @@ model RouteStop {
 
 /// Fleet master. Fuel, norm and year come from the vehicle registration record.
 model Bus {
-  id                   String     @id
-  registration         String     @unique
-  operator             String
-  routeId              String     @map("route_id")
-  fuel                 FuelType
-  norm                 EmissionNorm
+  id                    String       @id
+  registration          String       @unique
+  operator              String
+  routeId               String       @map("route_id")
+  fuel                  FuelType
+  norm                  EmissionNorm
   /// Year of manufacture — drives the age component of the Green Score.
-  year                 Int
-  seats                Int
-  wheelchairAccessible Boolean    @default(false) @map("wheelchair_accessible")
-  amenities            String[]
+  year                  Int
+  seats                 Int
+  wheelchairAccessible  Boolean      @default(false) @map("wheelchair_accessible")
+  amenities             String[]
   /// True when fuel/norm were inferred from the year rather than a filed record.
-  emissionDataEstimated Boolean   @default(false) @map("emission_data_estimated")
-  active               Boolean    @default(true)
-  createdAt            DateTime   @default(now()) @map("created_at")
-  updatedAt            DateTime   @updatedAt @map("updated_at")
+  emissionDataEstimated Boolean      @default(false) @map("emission_data_estimated")
+  active                Boolean      @default(true)
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @updatedAt @map("updated_at")
 
   route     Route         @relation(fields: [routeId], references: [id])
   trips     Trip[]
@@ -162,6 +162,8 @@ model Trip {
   id          String     @id @default(cuid())
   busId       String     @map("bus_id")
   routeId     String     @map("route_id")
+  /// Who started it. Null for trips reconstructed purely from vehicle telemetry.
+  driverId    String?    @map("driver_id")
   /// Scheduled departure from the origin, "HH:mm".
   scheduledAt String     @map("scheduled_at")
   startedAt   DateTime?  @map("started_at")
@@ -174,11 +176,13 @@ model Trip {
 
   bus            Bus             @relation(fields: [busId], references: [id])
   route          Route           @relation(fields: [routeId], references: [id])
+  driver         User?           @relation(fields: [driverId], references: [id], onDelete: SetNull)
   locations      BusLocation[]
   etaPredictions EtaPrediction[]
 
   @@index([routeId, status])
   @@index([busId, status])
+  @@index([driverId, status])
   @@map("trips")
 }
 
@@ -195,27 +199,27 @@ enum TripStatus {
 
 /// Historical GPS. Live state lives in Redis; this is the learning record.
 model BusLocation {
-  id           BigInt   @id @default(autoincrement())
-  busId        String   @map("bus_id")
-  tripId       String?  @map("trip_id")
-  lat          Float
-  lng          Float
-  geom         Unsupported("geometry(Point, 4326)")?
+  id         BigInt                                @id @default(autoincrement())
+  busId      String                                @map("bus_id")
+  tripId     String?                               @map("trip_id")
+  lat        Float
+  lng        Float
+  geom       Unsupported("geometry(Point, 4326)")?
   /// Position after snapping to the route shape.
-  matchedLat   Float?   @map("matched_lat")
-  matchedLng   Float?   @map("matched_lng")
+  matchedLat Float?                                @map("matched_lat")
+  matchedLng Float?                                @map("matched_lng")
   /// Distance travelled along the route at this fix, km.
-  progressKm   Float?   @map("progress_km")
-  speedKmph    Float    @map("speed_kmph")
-  heading      Float
-  accuracyM    Float    @map("accuracy_m")
+  progressKm Float?                                @map("progress_km")
+  speedKmph  Float                                 @map("speed_kmph")
+  heading    Float
+  accuracyM  Float                                 @map("accuracy_m")
   /// Device clock, as reported.
-  recordedAt   DateTime @map("recorded_at")
+  recordedAt DateTime                              @map("recorded_at")
   /// Server clock on ingest — the gap reveals buffered/dead-zone uploads.
-  receivedAt   DateTime @default(now()) @map("received_at")
+  receivedAt DateTime                              @default(now()) @map("received_at")
   /// True when the reading arrived late from a device's offline buffer.
-  buffered     Boolean  @default(false)
-  source       String   @default("mqtt")
+  buffered   Boolean                               @default(false)
+  source     String                                @default("mqtt")
 
   bus  Bus   @relation(fields: [busId], references: [id], onDelete: Cascade)
   trip Trip? @relation(fields: [tripId], references: [id], onDelete: SetNull)
@@ -227,18 +231,18 @@ model BusLocation {
 
 /// Snapshot of a computed arrival, kept for accuracy analysis after the fact.
 model EtaPrediction {
-  id           BigInt     @id @default(autoincrement())
-  tripId       String     @map("trip_id")
-  stopId       String     @map("stop_id")
-  etaSeconds   Int        @map("eta_seconds")
-  rangeLowSec  Int        @map("range_low_sec")
-  rangeHighSec Int        @map("range_high_sec")
-  confidence   Confidence
+  id            BigInt     @id @default(autoincrement())
+  tripId        String     @map("trip_id")
+  stopId        String     @map("stop_id")
+  etaSeconds    Int        @map("eta_seconds")
+  rangeLowSec   Int        @map("range_low_sec")
+  rangeHighSec  Int        @map("range_high_sec")
+  confidence    Confidence
   /// Age of the GPS fix the prediction was derived from, seconds.
-  dataAgeSec   Int        @map("data_age_sec")
+  dataAgeSec    Int        @map("data_age_sec")
   /// True when the live fix was too stale and the timetable answered instead.
-  fromTimetable Boolean   @default(false) @map("from_timetable")
-  calculatedAt DateTime   @default(now()) @map("calculated_at")
+  fromTimetable Boolean    @default(false) @map("from_timetable")
+  calculatedAt  DateTime   @default(now()) @map("calculated_at")
 
   trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
   stop Stop @relation(fields: [stopId], references: [id], onDelete: Cascade)
@@ -257,17 +261,17 @@ enum Confidence {
 
 /// Service disruption, mapping onto a GTFS-Realtime ServiceAlert.
 model Alert {
-  id         String        @id @default(cuid())
-  kind       AlertKind
-  severity   AlertSeverity
-  title      String
-  body       String
-  routeId    String?       @map("route_id")
-  stopIds    String[]      @map("stop_ids")
+  id        String        @id @default(cuid())
+  kind      AlertKind
+  severity  AlertSeverity
+  title     String
+  body      String
+  routeId   String?       @map("route_id")
+  stopIds   String[]      @map("stop_ids")
   /// Who issued it — a disaster-authority notice is not a crowd report.
-  source     String
-  issuedAt   DateTime      @default(now()) @map("issued_at")
-  expiresAt  DateTime?     @map("expires_at")
+  source    String
+  issuedAt  DateTime      @default(now()) @map("issued_at")
+  expiresAt DateTime?     @map("expires_at")
 
   route Route? @relation(fields: [routeId], references: [id], onDelete: SetNull)
 
@@ -293,4 +297,92 @@ enum AlertSeverity {
   severe
 
   @@map("alert_severity")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Identity and access
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+/// A person who can sign in. Passengers authenticate by phone + OTP; staff by
+/// employee id + OTP, or username + password for desk-bound admin roles.
+///
+/// There is deliberately no location column anywhere on this model. The SRS
+/// requires that passenger location is never stored, so a position is used to
+/// answer "which stops are near me?" and then discarded.
+model User {
+  id           String    @id @default(cuid())
+  phone        String    @unique
+  name         String
+  role         UserRole  @default(passenger)
+  /// Drivers sign in with this rather than a phone number (FR-34).
+  employeeId   String?   @unique @map("employee_id")
+  /// Argon2id hash. Only staff accounts have one; passengers never set a password.
+  passwordHash String?   @map("password_hash")
+  /// Which depot a driver or manager belongs to.
+  depot        String?
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+  trips         Trip[]
+
+  @@index([role, active])
+  @@map("users")
+}
+
+enum UserRole {
+  passenger
+  driver
+  depot_manager
+  admin
+  transport_authority
+
+  @@map("user_role")
+}
+
+/// A long-lived session, rotated on every use.
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  /// SHA-256 of the token; the raw value is never stored. A dump of this table
+  /// therefore yields nothing that can be replayed as a session.
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  /// Set when this token was rotated. If a token that already has a successor
+  /// is presented again, it has been stolen — and the whole family is revoked.
+  replacedBy String?   @map("replaced_by")
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+/// Append-only record of privileged actions, for the transport authority.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?  @map("actor_id")
+  actorRole String?  @map("actor_role")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([actorId, createdAt])
+  @@index([entity, entityId])
+  @@map("audit_logs")
 }

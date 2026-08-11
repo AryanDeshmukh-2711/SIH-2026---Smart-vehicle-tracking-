@@ -26,6 +26,25 @@ const schema = z.object({
 
   SIM_TIME_SCALE: z.coerce.number().positive().default(12),
   SIM_REPORT_MS: z.coerce.number().int().positive().default(2000),
+
+  /* --------------------------------- auth -------------------------------- */
+  // No default: a signing key that ships in source is not a signing key.
+  JWT_SECRET: z
+    .string()
+    .min(32, 'JWT_SECRET must be at least 32 characters — generate one, do not invent it'),
+  /** Short, because a stolen access token cannot be revoked before it expires. */
+  JWT_ACCESS_TTL: z.string().default('15m'),
+  JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(30),
+
+  OTP_TTL_SEC: z.coerce.number().int().positive().default(300),
+  /** Codes requestable per identifier per window — an unthrottled OTP endpoint
+   *  is an SMS bill someone else pays. */
+  OTP_MAX_REQUESTS: z.coerce.number().int().positive().default(5),
+  OTP_REQUEST_WINDOW_SEC: z.coerce.number().int().positive().default(900),
+
+  /** General API rate limit, per IP per window. */
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+  RATE_LIMIT_WINDOW_SEC: z.coerce.number().int().positive().default(60),
 });
 
 const parsed = schema.safeParse(process.env);

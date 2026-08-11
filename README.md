@@ -147,14 +147,49 @@ Worth stating plainly rather than being caught out on:
 npm test
 ```
 
-67 tests covering the logic the product's credibility rests on. None of them need Postgres, Redis or the broker — that's deliberate, and the reason those rules live in plain functions in `packages/shared`.
+83 tests covering the logic the product's credibility rests on. None of them need Postgres, Redis or the broker — that's deliberate, and the reason those rules live in plain functions in `packages/shared`.
 
 - **GPS validation** — impossible speeds, swapped coordinates, broken device clocks, GPS jitter over short intervals, and out-of-order readings from a dead-zone backlog.
 - **Confidence ladder** — the exact thresholds and output shapes from SRS §8.3, including that a bus is declared Signal Lost at 3 minutes while its ETA is still medium-confidence until 5.
 - **ETA engine** — road distance, dwell time, degradation with age, the 15-minute timetable fallback, and departures from the origin bay.
 - **Green Score & CO₂** — checked against the SRS's own worked examples: a new electric bus scores exactly **100**, a ten-year-old BS-IV diesel exactly **50**, and 25 km on an electric bus saves exactly **3.75 kg**.
+- **Auth** — password hashing that fails closed on a corrupt hash, and access tokens that reject tampering, a wrong signing key, the `none` algorithm, and malformed input.
 
 Two tests are regression guards for bugs that reached the running app: the dead-zone recovery cascade, and the empty terminus board.
+
+## 🔐 Signing in
+
+Three ways in, matching who is actually signing in:
+
+| Who | How | Why |
+|---|---|---|
+| Passenger | phone + OTP | A shared family handset should not carry a saved password |
+| Driver | employee id + OTP (FR-34) | The cab needs no keyboard |
+| Depot / admin | username + password | People at a terminal all day |
+
+**Transit data stays public.** Where the buses are, when they arrive, which stops exist, what the fares are — none of it is behind a login. It is public information, and the SRS targets people reaching this service by SMS and IVR precisely because they cannot or will not install an app. A signup wall in front of a bus timetable would defeat the point. Authentication guards *writing* and *privileged reading*: driver operations, depot tooling, and anything tied to an individual.
+
+Demo accounts (seeded by `npm run db:seed`):
+
+| Role | Identifier | Password |
+|---|---|---|
+| Driver | `HRTC-D-4021` | OTP only |
+| Depot manager | `HRTC-M-SML` | `shimla-depot-2026` |
+| Admin | `HRTC-ADMIN` | `himgati-admin-2026` |
+| Transport authority | `HPTA-001` | `authority-oversight-2026` |
+
+In development the OTP comes back in the response as `devCode`, so the flow works without an SMS gateway. That's gated on `NODE_ENV` — returning it in production would make the whole mechanism decorative.
+
+**What's actually enforced:**
+
+- Access tokens are short-lived (15 min) and carry only what authorisation needs — a JWT payload is signed, not encrypted, so anything inside it is readable by whoever holds the token.
+- Refresh tokens are stored **hashed** and rotate on every use. If a token that has already been rotated is presented again it was captured, so the entire session family is revoked — we cannot tell which party is the thief.
+- OTPs are hashed, single-use, capped at 5 wrong guesses, and rate limited per identifier — an unthrottled OTP endpoint is an SMS bill someone else pays.
+- Credential endpoints are rate limited on the *identifier*, not the IP: an attacker rotating through a proxy pool would sail past an IP-keyed limit while still hammering one account.
+- OTP requests answer identically whether or not the account exists, so the endpoint can't be used to enumerate registered numbers.
+- Privileged actions are written to an append-only audit log.
+
+---
 
 ## 🚧 Not built yet
 

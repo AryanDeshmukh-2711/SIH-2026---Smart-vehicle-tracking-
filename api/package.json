@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "HimGati backend \u2014 GPS ingestion, ETA engine and realtime transit API",
+  "description": "HimGati backend — GPS ingestion, ETA engine and realtime transit API",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
@@ -21,12 +21,14 @@
   },
   "dependencies": {
     "@himgati/shared": "*",
+    "@node-rs/argon2": "^2.0.2",
     "@prisma/client": "^6.3.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "ioredis": "^5.4.2",
+    "jose": "^6.2.8",
     "mqtt": "^5.10.3",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
