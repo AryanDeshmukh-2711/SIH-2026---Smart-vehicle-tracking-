@@ -2,6 +2,7 @@ import mqtt, { type MqttClient } from 'mqtt';
 import { env } from '../../config/env.ts';
 import { gpsLog } from '../../config/logger.ts';
 import { ingestReading } from './ingest.ts';
+import { ingestStatus } from '../ops/status.ts';
 import type { RawReading } from './validate.ts';
 
 /**
@@ -15,6 +16,8 @@ import type { RawReading } from './validate.ts';
  */
 
 export const GPS_TOPIC = 'him_gati/bus/+/location';
+/** Operator-reported delay, crowd level and cancellation — not GPS telemetry. */
+export const STATUS_TOPIC = 'him_gati/bus/+/status';
 
 let client: MqttClient | null = null;
 
@@ -29,9 +32,9 @@ export function startGpsConsumer(): MqttClient {
     gpsLog.info({ url: env.MQTT_URL }, 'mqtt connected');
     // QoS 1: a position may be delivered twice (the pipeline dedupes on
     // timestamp) but must not be silently dropped.
-    client?.subscribe(GPS_TOPIC, { qos: 1 }, (err) => {
+    client?.subscribe([GPS_TOPIC, STATUS_TOPIC], { qos: 1 }, (err) => {
       if (err) gpsLog.error({ err: err.message }, 'mqtt subscribe failed');
-      else gpsLog.info({ topic: GPS_TOPIC }, 'subscribed to GPS feed');
+      else gpsLog.info({ topics: [GPS_TOPIC, STATUS_TOPIC] }, 'subscribed to vehicle feeds');
     });
   });
 
@@ -50,7 +53,16 @@ async function handleMessage(topic: string, payload: Buffer): Promise<void> {
   try {
     parsed = JSON.parse(payload.toString());
   } catch {
-    gpsLog.warn({ topic }, 'unparseable GPS payload');
+    gpsLog.warn({ topic }, 'unparseable payload');
+    return;
+  }
+
+  if (topic.endsWith('/status')) {
+    try {
+      await ingestStatus(parsed);
+    } catch (err) {
+      gpsLog.error({ err: err instanceof Error ? err.message : err }, 'status ingest failed');
+    }
     return;
   }
 

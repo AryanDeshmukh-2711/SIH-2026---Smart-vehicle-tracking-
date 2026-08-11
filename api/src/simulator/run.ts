@@ -75,6 +75,7 @@ interface SimBus {
   /** Fixes recorded while out of coverage, flushed on reconnect. */
   buffer: Array<Record<string, unknown>>;
   wasInDeadZone: boolean;
+  seed: number;
 }
 
 function buildFleet(): SimBus[] {
@@ -119,10 +120,32 @@ function buildFleet(): SimBus[] {
       cancelled: pin.cancelled ?? false,
       buffer: [],
       wasInDeadZone: false,
+      seed: out.length + 1,
     });
   }
 
   return out;
+}
+
+/** Stable pseudo-random in [0,1) from an integer seed. */
+function seeded(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/**
+ * Crowd level, weighted towards the morning and evening peaks. Deterministic per
+ * vehicle so it drifts slowly rather than flickering between ticks.
+ */
+function occupancyFor(seed: number, simMinutes: number): 'empty' | 'comfortable' | 'full' {
+  const hour = (simMinutes / 60) % 24;
+  const rush =
+    Math.max(0, Math.cos(((hour - 9) / 12) * Math.PI)) +
+    Math.max(0, Math.cos(((hour - 18) / 12) * Math.PI));
+  const v = seeded(seed) * 0.5 + rush * 0.5;
+  if (v > 0.78) return 'full';
+  if (v > 0.34) return 'comfortable';
+  return 'empty';
 }
 
 function inDeadZone(routeId: string, km: number): boolean {
@@ -167,6 +190,24 @@ async function main(): Promise<void> {
     const pending: Array<Promise<unknown>> = [];
 
     for (const bus of fleet) {
+      // Delay, crowd level and cancellation come from the operator, not the GPS
+      // box — so they go out on the status topic regardless of whether the
+      // vehicle is reporting a position. A cancelled service publishes only
+      // this: there is no position, but passengers still need to be told.
+      pending.push(
+        client.publishAsync(
+          statusTopic(bus.busId),
+          JSON.stringify({
+            busId: bus.busId,
+            timestamp: Date.now(),
+            delayMin: bus.delayMin,
+            occupancy: bus.cancelled ? 'unknown' : occupancyFor(bus.seed, simMin),
+            cancelled: bus.cancelled,
+          }),
+          { qos: 1 },
+        ),
+      );
+
       if (bus.cancelled) continue;
 
       const phaseMin = (simMin + bus.offsetMin) % bus.cycleMin;
@@ -244,6 +285,7 @@ async function main(): Promise<void> {
 }
 
 const topic = (busId: string) => `him_gati/bus/${busId}/location`;
+const statusTopic = (busId: string) => `him_gati/bus/${busId}/status`;
 
 main().catch((err) => {
   log.error({ err: err instanceof Error ? err.message : err }, 'simulator failed');

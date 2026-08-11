@@ -12,7 +12,6 @@
  * cannot be trusted never becomes "where the bus is".
  */
 
-import type { Occupancy } from '@himgati/shared';
 import { SIGNAL_LOST_AFTER_SEC } from '@himgati/shared';
 import { env } from '../../config/env.ts';
 import { gpsLog } from '../../config/logger.ts';
@@ -24,7 +23,8 @@ import {
   cacheEta,
   effectiveStatus,
   getAllLive,
-  getLive,
+  getLiveRaw,
+  getOps,
   setLive,
   type LiveVehicle,
 } from '../../state/live.ts';
@@ -65,7 +65,7 @@ export async function ingestReading(raw: RawReading): Promise<IngestOutcome> {
 
   /* ------------------------------- validate ------------------------------- */
 
-  const previous = await getLive(bus.id);
+  const previous = await getLiveRaw(bus.id);
   const result = validateReading(
     { ...raw, busId: bus.id },
     {
@@ -158,16 +158,31 @@ export async function ingestReading(raw: RawReading): Promise<IngestOutcome> {
     nextStopIndex: eta.nextStopIndex,
     recordedAt: reading.recordedAt.toISOString(),
     receivedAt: new Date().toISOString(),
+    // Cancellation and crowd level are owned by the operator channel and are
+    // overlaid when this record is read, so nothing is asserted about them here.
     status: delayMin >= 5 ? 'delayed' : 'running',
     delayMin,
-    occupancy: (raw as { occupancy?: Occupancy }).occupancy ?? 'unknown',
+    occupancy: 'unknown',
     lastSeenStopName: network.stop(lastSeenStopId)?.name ?? null,
   };
 
   await setLive(vehicle);
   if (trip) await cacheEta(trip.id, eta.predictions);
 
-  broadcastVehicle(vehicle, eta.predictions);
+  // Broadcast the merged view. The record we just stored deliberately carries
+  // neutral values for the operator-owned fields, and emitting it unmerged would
+  // push "crowd level unknown" to every client twice a second — overwriting the
+  // real value the status channel had just set.
+  const ops = await getOps(bus.id);
+  broadcastVehicle(
+    {
+      ...vehicle,
+      delayMin: ops.delayMin ?? vehicle.delayMin,
+      occupancy: ops.occupancy ?? vehicle.occupancy,
+      status: ops.cancelled ? 'cancelled' : vehicle.status,
+    },
+    eta.predictions,
+  );
 
   ingestStats.accepted++;
   return { accepted: true, busId: bus.id };
@@ -237,6 +252,13 @@ export async function refreshAllEtas(): Promise<number> {
   for (const vehicle of live) {
     const route = network.route(vehicle.routeId);
     if (!route) continue;
+
+    // A cancelled service has no arrivals to predict, and recomputing would
+    // quietly promote it back to "running" on the next tick.
+    if (vehicle.status === 'cancelled') {
+      broadcastVehicle(vehicle, []);
+      continue;
+    }
 
     const ageSec = ageSecOf(vehicle, now);
     const eta = computeEta({

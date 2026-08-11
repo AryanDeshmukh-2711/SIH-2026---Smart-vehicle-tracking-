@@ -55,17 +55,73 @@ export async function setLive(v: LiveVehicle): Promise<void> {
   await pipeline.exec();
 }
 
+/* --------------------------- operator-owned state ------------------------- */
+
+export interface VehicleOps {
+  delayMin?: number;
+  occupancy?: Occupancy;
+  cancelled?: boolean;
+}
+
+export async function setOps(busId: string, ops: VehicleOps): Promise<void> {
+  const existing = await getOps(busId);
+  await redis.set(
+    keys.busOps(busId),
+    JSON.stringify({ ...existing, ...ops }),
+    'EX',
+    LIVE_TTL_SEC,
+  );
+}
+
+export async function getOps(busId: string): Promise<VehicleOps> {
+  const raw = await redis.get(keys.busOps(busId));
+  return raw ? (JSON.parse(raw) as VehicleOps) : {};
+}
+
+/** Overlay operator-reported fields onto a position record. */
+function merge(vehicle: LiveVehicle, ops: VehicleOps): LiveVehicle {
+  return {
+    ...vehicle,
+    delayMin: ops.delayMin ?? vehicle.delayMin,
+    occupancy: ops.occupancy ?? vehicle.occupancy,
+    status: ops.cancelled
+      ? 'cancelled'
+      : (ops.delayMin ?? vehicle.delayMin) >= 5
+        ? 'delayed'
+        : vehicle.status,
+  };
+}
+
+/* -------------------------------- reads ----------------------------------- */
+
 export async function getLive(busId: string): Promise<LiveVehicle | null> {
+  const [raw, ops] = await Promise.all([redis.get(keys.busLive(busId)), getOps(busId)]);
+  if (!raw) return null;
+  return merge(JSON.parse(raw) as LiveVehicle, ops);
+}
+
+/** The position record without any operator overlay — for writers that must not
+ * accidentally persist merged values back into the position key. */
+export async function getLiveRaw(busId: string): Promise<LiveVehicle | null> {
   const raw = await redis.get(keys.busLive(busId));
   return raw ? (JSON.parse(raw) as LiveVehicle) : null;
 }
 
 export async function getLiveMany(busIds: string[]): Promise<LiveVehicle[]> {
   if (busIds.length === 0) return [];
-  const raws = await redis.mget(busIds.map(keys.busLive));
-  return raws
-    .filter((r): r is string => Boolean(r))
-    .map((r) => JSON.parse(r) as LiveVehicle);
+
+  const [raws, opsRaws] = await Promise.all([
+    redis.mget(busIds.map(keys.busLive)),
+    redis.mget(busIds.map(keys.busOps)),
+  ]);
+
+  const out: LiveVehicle[] = [];
+  raws.forEach((raw, i) => {
+    if (!raw) return;
+    const ops = opsRaws[i] ? (JSON.parse(opsRaws[i]!) as VehicleOps) : {};
+    out.push(merge(JSON.parse(raw) as LiveVehicle, ops));
+  });
+  return out;
 }
 
 export async function getAllLive(): Promise<LiveVehicle[]> {
