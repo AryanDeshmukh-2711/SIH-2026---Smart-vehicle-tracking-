@@ -3,7 +3,7 @@ import { PLACES, PLACE_BY_ID } from '@/data/places';
 import { STOP_BY_ID } from '@/data/stops';
 import { haversineKm } from '@/lib/geo';
 import { request } from './client';
-import { departuresAtStop } from './simulation/simulator';
+import { departuresAt } from './live/queries';
 
 export type ExploreFilter = 'popular' | PlaceCategory;
 
@@ -78,7 +78,7 @@ export function getPlaceAccess(placeId: string): Promise<PlaceAccess> {
     if (!place) throw new Error(`Place ${placeId} not found`);
 
     const stop = STOP_BY_ID.get(place.nearestStopId);
-    const next = departuresAtStop(place.nearestStopId)[0];
+    const next = departuresAt(place.nearestStopId, 1)[0];
 
     return {
       stopId: place.nearestStopId,

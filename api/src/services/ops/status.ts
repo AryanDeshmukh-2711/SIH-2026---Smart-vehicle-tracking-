@@ -28,6 +28,8 @@ export const statusSchema = z.object({
   delayMin: z.number().int().min(-60).max(600).optional(),
   occupancy: z.enum(['empty', 'comfortable', 'full', 'unknown']).optional(),
   cancelled: z.boolean().optional(),
+  /** Minutes until departure while waiting in the origin bay. */
+  departsInMin: z.number().int().min(0).max(1440).nullish(),
   timestamp: z.union([z.number(), z.string()]).optional(),
 });
 
@@ -95,6 +97,9 @@ export async function ingestStatus(raw: unknown): Promise<void> {
     delayMin: report.delayMin,
     occupancy: report.occupancy as Occupancy | undefined,
     cancelled: report.cancelled,
+    // Explicitly cleared once the vehicle is moving, so a stale bay time cannot
+    // linger on a service that has already left.
+    departsInMin: report.departsInMin ?? undefined,
   });
 
   statusStats.applied++;

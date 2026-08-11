@@ -61,6 +61,36 @@ export function nextStopIndexFor(route: NetworkRoute, progressKm: number): numbe
   return idx === -1 ? route.stopIds.length - 1 : idx;
 }
 
+/** A vehicle within this distance of the origin, stationary, is in the bay. */
+export const ORIGIN_BAY_KM = 0.3;
+
+/**
+ * Minutes until this route's next scheduled departure.
+ *
+ * A vehicle waiting in the origin bay has made no progress, so there is nothing
+ * to extrapolate from — the timetable is the only thing that can say when it
+ * leaves. Without this a terminus board is empty, because a bus parked at a stop
+ * is treated as having already passed it: Shimla ISBT is the origin of six
+ * routes and showed no departures at all.
+ */
+export function minutesUntilDeparture(route: NetworkRoute, now = new Date()): number {
+  const nowMs = now.getTime();
+
+  for (const dep of route.departures) {
+    const [h, m] = dep.split(':').map(Number);
+    const t = new Date(now);
+    t.setHours(h, m, 0, 0);
+    if (t.getTime() > nowMs) return Math.round((t.getTime() - nowMs) / 60_000);
+  }
+
+  // Nothing left today — first service tomorrow.
+  const [h, m] = route.departures[0].split(':').map(Number);
+  const t = new Date(now);
+  t.setDate(t.getDate() + 1);
+  t.setHours(h, m, 0, 0);
+  return Math.round((t.getTime() - nowMs) / 60_000);
+}
+
 export function computeEta(input: EtaInput): EtaResult {
   const { route, progressKm, ageSec, delayMin } = input;
   const now = input.now ?? new Date();

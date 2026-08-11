@@ -29,7 +29,7 @@ import {
   setLive,
   type LiveVehicle,
 } from '../../state/live.ts';
-import { computeEta } from '../eta/engine.ts';
+import { computeEta, minutesUntilDeparture, ORIGIN_BAY_KM } from '../eta/engine.ts';
 import { validateReading, type AcceptedReading, type RawReading } from './validate.ts';
 import { broadcastVehicle } from '../../realtime/publish.ts';
 
@@ -132,14 +132,21 @@ export async function ingestReading(raw: RawReading): Promise<IngestOutcome> {
   /* ------------------------------- live state ----------------------------- */
 
   const trip = await currentTrip(bus.id, route.id);
+  const ops = await getOps(bus.id);
   const ageSec = 0; // just received
   const delayMin = trip?.delayMin ?? 0;
+
+  // Stationary at the origin means waiting to depart, not "already passed the
+  // first stop" — otherwise a terminus shows no departures at all.
+  const inBay = match.progressKm < ORIGIN_BAY_KM && reading.speedKmph < 2;
 
   const eta = computeEta({
     route,
     progressKm: match.progressKm,
     ageSec,
     delayMin,
+    // Operator-declared time if there is one, timetable otherwise.
+    departsInMin: inBay ? (ops.departsInMin ?? minutesUntilDeparture(route)) : 0,
   });
 
   const passedCount = route.distancesKm.filter((d) => d <= match.progressKm).length;
@@ -161,7 +168,9 @@ export async function ingestReading(raw: RawReading): Promise<IngestOutcome> {
     receivedAt: new Date().toISOString(),
     // Cancellation and crowd level are owned by the operator channel and are
     // overlaid when this record is read, so nothing is asserted about them here.
-    status: delayMin >= 5 ? 'delayed' : 'running',
+    // A vehicle still in the bay has not started its run — calling it "running"
+    // makes the board say a bus is *arriving at* the stop it is parked in.
+    status: inBay ? 'scheduled' : delayMin >= 5 ? 'delayed' : 'running',
     delayMin,
     occupancy: 'unknown',
     lastSeenStopName: network.stop(lastSeenStopId)?.name ?? null,
@@ -174,7 +183,6 @@ export async function ingestReading(raw: RawReading): Promise<IngestOutcome> {
   // neutral values for the operator-owned fields, and emitting it unmerged would
   // push "crowd level unknown" to every client twice a second — overwriting the
   // real value the status channel had just set.
-  const ops = await getOps(bus.id);
   broadcastVehicle(
     {
       ...vehicle,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { LiveBus, StopPrediction } from '@/types';
-import { LIVE_BOARD_HORIZON_MIN } from '@/services/simulation/simulator';
 import { liveStore, type LiveSource } from '@/services/live/liveStore';
+import { departuresAt } from '@/services/live/queries';
 
 /**
  * Live fleet subscription.
@@ -24,26 +24,19 @@ export function useLiveBus(busId: string | undefined): LiveBus | undefined {
   return busId ? fleet.find((b) => b.bus.id === busId) : undefined;
 }
 
-/** Live arrivals for a stop, recomputed on every fleet tick. */
+/**
+ * Live arrivals for a stop, recomputed on every fleet tick.
+ *
+ * Subscribing first is what makes this reactive; the board itself is built by
+ * the same `departuresAt` the services use, so a stop screen and the journey
+ * planner cannot quote different times for the same bus.
+ */
 export function useDepartures(
   stopId: string | undefined,
   limit = 8,
 ): Array<{ live: LiveBus; prediction: StopPrediction }> {
-  const fleet = useLiveFleet();
-  if (!stopId) return [];
-
-  return fleet
-    .flatMap((live) => {
-      if (live.live.status === 'cancelled') return [];
-      const prediction = live.live.predictions.find((p) => p.stopId === stopId);
-      // Layover vehicles at a terminus count; anything beyond the live-board
-      // horizon belongs on the timetable instead.
-      return prediction && prediction.etaMin <= LIVE_BOARD_HORIZON_MIN
-        ? [{ live, prediction }]
-        : [];
-    })
-    .sort((a, b) => a.prediction.etaMin - b.prediction.etaMin)
-    .slice(0, limit);
+  useLiveFleet();
+  return stopId ? departuresAt(stopId, limit) : [];
 }
 
 /* ------------------------------ async helper ------------------------------ */

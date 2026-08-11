@@ -8,7 +8,13 @@ import { ROUTES, ROUTE_BY_ID, routeDistanceKm, routesServingStop } from '@/data/
 import { BUSES, BUS_BY_ID } from '@/data/buses';
 import { haversineKm, walkMinutes } from '@/lib/geo';
 import { request } from './client';
-import { departuresAtStop, liveBusById, liveBusByRegistration, simulator } from './simulation/simulator';
+import {
+  departuresAt,
+  liveSnapshot,
+  matchVehicles,
+  vehicleById,
+  vehicleByRegistration,
+} from './live/queries';
 import { formatEtaCompact } from '@/lib/eta';
 import { pretty24 } from '@/lib/format';
 
@@ -120,23 +126,15 @@ export function findVehicle(query: string): Promise<LiveBus[]> {
     const q = query.trim().toLowerCase().replace(/[\s-]/g, '');
     if (!q) return [];
 
-    const direct = liveBusByRegistration(query);
+    // An exact registration is unambiguous, so it wins outright.
+    const direct = vehicleByRegistration(query);
     if (direct) return [direct];
 
-    const byRoute = simulator
-      .getSnapshot()
-      .filter(
-        (lb) =>
-          lb.route.shortName.toLowerCase().replace(/\s/g, '') === q ||
-          lb.route.shortName.toLowerCase().includes(q) ||
-          lb.bus.registration.toLowerCase().replace(/[\s-]/g, '').includes(q),
-      );
-
-    return byRoute;
+    return matchVehicles(query, 8);
   });
 }
 
-export { liveBusById };
+export { vehicleById as liveBusById };
 
 /* ------------------------------ departures -------------------------------- */
 
@@ -150,7 +148,7 @@ export interface Departure {
 export function getDepartures(stopId: string, limit = 8): Promise<Departure[]> {
   return request(`/v1/stops/${stopId}/departures`, () => {
     const stop = STOP_BY_ID.get(stopId);
-    return departuresAtStop(stopId)
+    return departuresAt(stopId, limit)
       .slice(0, limit)
       .map(({ live, prediction }, i) => ({
         live,
@@ -216,7 +214,7 @@ export function smsReply(stopId: string): string {
   const stop = STOP_BY_ID.get(stopId);
   if (!stop) return 'Stop not found. Text BUS <4-digit code>.';
 
-  const rows = departuresAtStop(stopId).slice(0, 3);
+  const rows = departuresAt(stopId, 3);
   if (rows.length === 0) {
     const tt = ROUTES.filter((r) => r.stopIds.includes(stopId))
       .slice(0, 2)
@@ -252,7 +250,7 @@ export interface NetworkSummary {
 
 export function getNetworkSummary(): Promise<NetworkSummary> {
   return request('/v1/summary', () => {
-    const snapshot = simulator.getSnapshot();
+    const snapshot = liveSnapshot();
     return {
       routes: ROUTES.length,
       stops: STOPS.length,

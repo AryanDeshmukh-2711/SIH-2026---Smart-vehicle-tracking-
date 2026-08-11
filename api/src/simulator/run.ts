@@ -194,6 +194,9 @@ async function main(): Promise<void> {
       // box — so they go out on the status topic regardless of whether the
       // vehicle is reporting a position. A cancelled service publishes only
       // this: there is no position, but passengers still need to be told.
+      const phase = (simMin + bus.offsetMin) % bus.cycleMin;
+      const onLayover = !bus.cancelled && phase >= bus.runMin;
+
       pending.push(
         client.publishAsync(
           statusTopic(bus.busId),
@@ -203,6 +206,11 @@ async function main(): Promise<void> {
             delayMin: bus.delayMin,
             occupancy: bus.cancelled ? 'unknown' : occupancyFor(bus.seed, simMin),
             cancelled: bus.cancelled,
+            // Null once rolling, so the server clears the bay time rather than
+            // reporting a departure for a bus that has already gone.
+            departsInMin: onLayover
+              ? Math.max(0, Math.round((bus.cycleMin - phase) / env.SIM_TIME_SCALE))
+              : null,
           }),
           { qos: 1 },
         ),

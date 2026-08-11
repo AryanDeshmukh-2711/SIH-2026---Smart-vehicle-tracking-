@@ -15,7 +15,7 @@ import { co2SavedKg, greenScore } from '@/lib/green';
 import { haversineKm, walkMinutes } from '@/lib/geo';
 import { addMinutes, hhmm24 } from '@/lib/format';
 import { request } from './client';
-import { simulator } from './simulation/simulator';
+import { nextArrivalOnRoute } from './live/queries';
 
 export const PREFERENCE_LABEL: Record<JourneyPreference, string> = {
   fastest: 'Fastest',
@@ -49,13 +49,9 @@ function pickVehicle(routeId: string) {
 function nextDeparture(route: Route, stopIdx: number, after: Date): Date {
   const stopId = route.stopIds[stopIdx];
 
-  const live = simulator
-    .getSnapshot()
-    .filter((lb) => lb.route.id === route.id && lb.live.status !== 'cancelled')
-    .map((lb) => lb.live.predictions.find((p) => p.stopId === stopId))
-    .filter((p): p is NonNullable<typeof p> => Boolean(p))
-    .sort((a, b) => a.etaMin - b.etaMin)[0];
-
+  // The same live feed the map reads, so a quoted departure cannot contradict
+  // the bus the user can see moving on screen.
+  const live = nextArrivalOnRoute(route.id, stopId);
   if (live) return addMinutes(after, Math.max(1, live.etaMin));
 
   const totalKm = routeDistanceKm(route);

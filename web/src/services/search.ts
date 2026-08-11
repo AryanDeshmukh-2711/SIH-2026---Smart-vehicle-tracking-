@@ -10,7 +10,7 @@
 import type { LiveBus, Place, Route, Stop } from '@/types';
 import { matchRoutes, matchStops } from './transit';
 import { matchPlaces } from './places';
-import { simulator } from './simulation/simulator';
+import { matchVehicles as matchLiveVehicles } from './live/queries';
 import { STOPS } from '@/data/stops';
 import { request } from './client';
 
@@ -122,18 +122,7 @@ export function parseJourneyQuery(query: string): JourneyIntent | null {
 /* ------------------------------ vehicle match ----------------------------- */
 
 function matchVehicles(query: string, limit = 4): LiveBus[] {
-  const q = query.trim().toLowerCase().replace(/[\s-]/g, '');
-  if (q.length < 2) return [];
-
-  return simulator
-    .getSnapshot()
-    .filter(
-      (lb) =>
-        lb.bus.registration.toLowerCase().replace(/[\s-]/g, '').includes(q) ||
-        lb.route.shortName.toLowerCase() === q ||
-        lb.route.shortName.toLowerCase().startsWith(q),
-    )
-    .slice(0, limit);
+  return matchLiveVehicles(query, limit);
 }
 
 /* -------------------------------- entry ---------------------------------- */

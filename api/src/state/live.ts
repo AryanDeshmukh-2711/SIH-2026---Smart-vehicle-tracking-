@@ -61,6 +61,12 @@ export interface VehicleOps {
   delayMin?: number;
   occupancy?: Occupancy;
   cancelled?: boolean;
+  /**
+   * Minutes until this service pulls out of the origin bay, as declared by the
+   * operator. Beats inferring it from the timetable: the depot knows which
+   * vehicle is on which run, and the timetable only knows when *a* bus is due.
+   */
+  departsInMin?: number;
 }
 
 export async function setOps(busId: string, ops: VehicleOps): Promise<void> {
@@ -86,9 +92,13 @@ function merge(vehicle: LiveVehicle, ops: VehicleOps): LiveVehicle {
     occupancy: ops.occupancy ?? vehicle.occupancy,
     status: ops.cancelled
       ? 'cancelled'
-      : (ops.delayMin ?? vehicle.delayMin) >= 5
-        ? 'delayed'
-        : vehicle.status,
+      : // A vehicle awaiting departure stays 'scheduled' even if its run is
+        // already booked as late — it has not started yet.
+        vehicle.status === 'scheduled'
+        ? 'scheduled'
+        : (ops.delayMin ?? vehicle.delayMin) >= 5
+          ? 'delayed'
+          : vehicle.status,
   };
 }
 
