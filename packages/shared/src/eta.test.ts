@@ -98,6 +98,25 @@ describe('the ETA changes shape as confidence falls', () => {
   it('says a bus is arriving rather than showing zero', () => {
     expect(formatEta(prediction({ etaMin: 0 }))).toBe('Arriving');
   });
+
+  it('switches to hours once minutes stop being readable', () => {
+    // "188 min" is arithmetic homework on a bus stop board.
+    expect(formatEta(prediction({ etaMin: 188, confidence: 'high' }))).toBe('3h 8m');
+    expect(formatEta(prediction({ etaMin: 120, confidence: 'high' }))).toBe('2h');
+    expect(formatEta(prediction({ etaMin: 89, confidence: 'high' }))).toBe('89 min');
+  });
+
+  it('drops the range at long horizons, where it stops meaning anything', () => {
+    // "168–256 min" reads as noise; the confidence mark beside the figure still
+    // says how much to trust it.
+    expect(formatEta(prediction({ etaMin: 212, confidence: 'low', rangeMin: [138, 286] }))).toBe(
+      '3h 32m',
+    );
+    // Below the threshold the range is still the honest answer.
+    expect(formatEta(prediction({ etaMin: 11, confidence: 'low', rangeMin: [8, 14] }))).toBe(
+      '8–14 min',
+    );
+  });
 });
 
 describe('ranges widen as confidence falls', () => {

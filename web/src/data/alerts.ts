@@ -1,9 +1,9 @@
 import type { OfflinePack, UserProfile } from '@/types';
 
 /**
- * Service alerts moved to `@himgati/shared/data` so the API can seed them and
- * serve them from the database. Offline packs and the demo user profile stay
- * here: both are client-side concerns with no server representation yet.
+ * Service alerts live in `@himgati/shared/data` so the API seeds them and
+ * serves them from the database. Offline packs and the demo profile stay here:
+ * both are client-side concerns with no server representation yet.
  */
 export { ALERTS } from '@himgati/shared/data';
 

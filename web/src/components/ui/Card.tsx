@@ -50,6 +50,7 @@ export function SectionHeader({
   hint,
   action,
   actionTo,
+  actionState,
   onAction,
   className,
 }: {
@@ -57,6 +58,8 @@ export function SectionHeader({
   hint?: string;
   action?: string;
   actionTo?: string;
+  /** Router state for `actionTo` — used to carry a prefilled journey. */
+  actionState?: unknown;
   onAction?: () => void;
   className?: string;
 }) {
@@ -70,6 +73,7 @@ export function SectionHeader({
       {action && actionTo && (
         <Link
           to={actionTo}
+          state={actionState}
           className="flex shrink-0 items-center gap-0.5 text-[12.5px] font-semibold text-brand-600 hover:text-brand-700"
         >
           {action}

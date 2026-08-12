@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Accessibility,
@@ -8,23 +9,26 @@ import {
   Download,
   Eye,
   Gauge,
+  Headphones,
   HelpCircle,
   Home,
-  Languages,
   Leaf,
   MapPin,
+  MessageSquare,
+  Phone,
   Route as RouteIcon,
   Shield,
   Star,
+  UserRound,
   Volume2,
   Wifi,
 } from 'lucide-react';
 import type { JourneyPreference } from '@/types';
 import { Screen, ScreenBody, ScreenHeader, Stack } from '@/components/layout/Screen';
 import { Card, List, ListRow, SectionHeader } from '@/components/ui/Card';
-import { Segmented, Toggle } from '@/components/ui/Field';
+import { Toggle } from '@/components/ui/Field';
+import { Sheet } from '@/components/ui/Sheet';
 import { Badge } from '@/components/ui/Badge';
-import { Logo } from '@/components/layout/AppShell';
 import { useApp } from '@/store/AppState';
 import { PREFERENCE_LABEL } from '@/services/journey';
 import { STOP_BY_ID } from '@/data/stops';
@@ -58,7 +62,6 @@ export function ProfileScreen() {
   const {
     user,
     setTravelMode,
-    setLanguage,
     toggleLowData,
     updateAccessibility,
     updateNotification,
@@ -66,6 +69,8 @@ export function ProfileScreen() {
     savedPlaceIds,
     unreadAlerts,
   } = useApp();
+
+  const [sheet, setSheet] = useState<null | 'privacy' | 'help'>(null);
 
   const stats = summarise(TRIPS);
   const storage = storageUsedMb(OFFLINE_PACKS);
@@ -95,7 +100,11 @@ export function ProfileScreen() {
                   <Badge>{stats.trips} trips</Badge>
                 </div>
               </div>
-              <Logo size={30} />
+              {/* Was the app's own bus logo, which read as branding sitting in the
+                  user's row rather than anything to do with them. */}
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-3 text-ink-3">
+                <UserRound size={18} strokeWidth={2.2} />
+              </span>
             </div>
           </Card>
 
@@ -152,21 +161,36 @@ export function ProfileScreen() {
                   />
                 );
               })}
+              {/* Points at the saved list, not the whole catalogue: this used to
+                  link to Explore, which is the opposite of "the ones I kept". */}
               <ListRow
-                to="/explore"
+                to="/saved"
                 icon={<Bookmark size={15} strokeWidth={2.3} />}
-                title={`${savedPlaceIds.length} saved destinations`}
-                subtitle={savedPlaceIds
-                  .map((id) => PLACE_BY_ID.get(id)?.name)
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .join(', ')}
+                title={
+                  savedPlaceIds.length > 0
+                    ? `${savedPlaceIds.length} saved destination${savedPlaceIds.length === 1 ? '' : 's'}`
+                    : 'No saved destinations yet'
+                }
+                subtitle={
+                  savedPlaceIds.length > 0
+                    ? savedPlaceIds
+                        .map((id) => PLACE_BY_ID.get(id)?.name)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .join(', ')
+                    : 'Bookmark a place to keep it here'
+                }
               />
             </List>
           </section>
 
           <section>
-            <SectionHeader title="Saved routes" hint={`${savedRouteIds.length} routes`} />
+            <SectionHeader
+              title="Saved routes"
+              hint={`${savedRouteIds.length} routes`}
+              action="See all saved"
+              actionTo="/saved"
+            />
             <List>
               {savedRouteIds.map((id) => {
                 const r = ROUTE_BY_ID.get(id);
@@ -274,25 +298,6 @@ export function ProfileScreen() {
             </Card>
           </section>
 
-          {/* ------------------------------ language --------------------------- */}
-          <section>
-            <SectionHeader title="Language" hint="हिन्दी and English are both fully supported" />
-            <Card>
-              <div className="flex items-center gap-3">
-                <Languages size={17} strokeWidth={2.2} className="shrink-0 text-ink-2" />
-                <Segmented<'en' | 'hi'>
-                  value={user.language}
-                  onChange={setLanguage}
-                  options={[
-                    { value: 'en', label: 'English' },
-                    { value: 'hi', label: 'हिन्दी' },
-                  ]}
-                  className="flex-1"
-                />
-              </div>
-            </Card>
-          </section>
-
           {/* ------------------------------- data ------------------------------ */}
           <section>
             <SectionHeader title="Data & offline" />
@@ -334,23 +339,25 @@ export function ProfileScreen() {
                 title="Location methods"
                 subtitle="Six ways to find your stop without GPS"
               />
+              {/* These two were wired to `() => undefined` — they looked like
+                  rows you could open and did nothing at all when tapped. */}
               <ListRow
                 icon={<Shield size={15} strokeWidth={2.3} />}
                 title="Privacy"
-                subtitle="Your location is never stored on our servers"
-                onClick={() => undefined}
+                subtitle="What we collect, and what we never store"
+                onClick={() => setSheet('privacy')}
               />
               <ListRow
                 icon={<HelpCircle size={15} strokeWidth={2.3} />}
                 title="Help & support"
-                subtitle="HRTC helpline 0177-2658765"
-                onClick={() => undefined}
+                subtitle="Helpline, SMS and the IVR line"
+                onClick={() => setSheet('help')}
               />
             </List>
           </section>
 
           <div className="pb-2 text-center">
-            <div className="text-[11.5px] font-semibold text-ink-3">HimGati 1.0</div>
+            <div className="text-[11.5px] font-semibold text-ink-3">Routify 1.0</div>
             <p className="mx-auto mt-1 max-w-[280px] text-[11px] leading-relaxed text-ink-4">
               Built on open transit data. Passenger positions are processed on your device and never
               sent to the server.
@@ -358,6 +365,89 @@ export function ProfileScreen() {
           </div>
         </Stack>
       </ScreenBody>
+
+      {/* ------------------------------- sheets ------------------------------- */}
+      <Sheet
+        open={sheet === 'privacy'}
+        onClose={() => setSheet(null)}
+        title="Privacy"
+        subtitle="What leaves your phone, and what does not"
+      >
+        <div className="space-y-3 pb-2">
+          {[
+            {
+              title: 'Your location stays on the device',
+              body: 'Stop matching, nearby search and walk times are all computed locally. No position is sent to a server or retained.',
+            },
+            {
+              title: 'No account, no tracking',
+              body: 'There is no sign-in and no advertising identifier. Saved places and reviews live in this app only.',
+            },
+            {
+              title: 'What we do fetch',
+              body: 'Timetables, live vehicle positions and map tiles. Those requests carry no identifier that ties them to you.',
+            },
+          ].map((row) => (
+            <Card key={row.title}>
+              <div className="text-[13.5px] font-bold text-ink">{row.title}</div>
+              <p className="mt-1 text-[12.5px] leading-relaxed text-ink-3">{row.body}</p>
+            </Card>
+          ))}
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={sheet === 'help'}
+        onClose={() => setSheet(null)}
+        title="Help & support"
+        subtitle="Including options that need no smartphone"
+      >
+        <div className="space-y-2.5 pb-2">
+          {SUPPORT_CHANNELS.map((c) => (
+            <Card key={c.label}>
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-brand-50 text-brand-600">
+                  <c.icon size={17} strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-bold text-ink">{c.label}</div>
+                  <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink-3">{c.body}</p>
+                  <a
+                    href={c.href}
+                    className="mt-1.5 inline-block font-mono text-[12.5px] font-semibold text-brand-600"
+                  >
+                    {c.value}
+                  </a>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </Sheet>
     </Screen>
   );
 }
+
+const SUPPORT_CHANNELS = [
+  {
+    label: 'HRTC helpline',
+    body: 'Depot enquiries, lost property and complaints, 24 hours.',
+    value: '0177-2658765',
+    href: 'tel:01772658765',
+    icon: Phone,
+  },
+  {
+    label: 'Departures by SMS',
+    body: 'Text BUS followed by the four-digit code printed at the stop.',
+    value: 'BUS 0101 to 56070',
+    href: 'sms:56070?body=BUS%200101',
+    icon: MessageSquare,
+  },
+  {
+    label: 'Voice line in Hindi',
+    body: 'Reads out the next departures for any stop code. Built for passengers without a smartphone.',
+    value: '1800-180-6070',
+    href: 'tel:18001806070',
+    icon: Headphones,
+  },
+] as const;

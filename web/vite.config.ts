@@ -43,8 +43,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'HimGati — Smart Transit for Himachal',
-        short_name: 'HimGati',
+        name: 'Routify — Smart Transit for Himachal',
+        short_name: 'Routify',
         description:
           'Real-time bus tracking, journey planning and tourism discovery for Himachal Pradesh.',
         theme_color: '#0F6B62',

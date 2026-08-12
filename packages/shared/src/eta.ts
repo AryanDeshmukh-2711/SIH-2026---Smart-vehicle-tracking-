@@ -30,20 +30,35 @@ export function confidenceFromAge(ageSec: number): Confidence {
  *   low    → "8–14 min"
  * FR-14: this never returns an empty string.
  */
+/** Past this, minutes stop being readable and become arithmetic homework. */
+const HOURS_THRESHOLD_MIN = 90;
+
+/** 188 → "3h 8m", 45 → "45 min". */
+function etaFigure(min: number): string {
+  const m = Math.round(min);
+  if (m < HOURS_THRESHOLD_MIN) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return rest === 0 ? `${h}h` : `${h}h ${rest}m`;
+}
+
 export function formatEta(p: Pick<StopPrediction, 'etaMin' | 'rangeMin' | 'confidence'>): string {
   if (p.etaMin <= 0) return 'Arriving';
   if (p.etaMin < 1) return 'Under a minute';
 
-  switch (p.confidence) {
-    case 'high':
-      return `${Math.round(p.etaMin)} min`;
-    case 'medium': {
-      const spread = Math.max(1, Math.round((p.rangeMin[1] - p.rangeMin[0]) / 2));
-      return `${Math.round(p.etaMin)} min (±${spread})`;
-    }
-    case 'low':
-      return `${Math.round(p.rangeMin[0])}–${Math.round(p.rangeMin[1])} min`;
+  // A range is only meaningful at human scale. "168–256 min" is noise; past the
+  // hours threshold the point estimate in hours is the honest simplification, and
+  // the confidence mark beside it still says how much to trust it.
+  if (p.confidence === 'low' && p.etaMin < HOURS_THRESHOLD_MIN) {
+    return `${Math.round(p.rangeMin[0])}–${Math.round(p.rangeMin[1])} min`;
   }
+
+  if (p.confidence === 'medium' && p.etaMin < HOURS_THRESHOLD_MIN) {
+    const spread = Math.max(1, Math.round((p.rangeMin[1] - p.rangeMin[0]) / 2));
+    return `${Math.round(p.etaMin)} min (±${spread})`;
+  }
+
+  return etaFigure(p.etaMin);
 }
 
 /** Short form for dense lists — the range collapses but the ± is kept. */

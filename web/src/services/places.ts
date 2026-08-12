@@ -101,7 +101,7 @@ export function getPlaceAccess(placeId: string): Promise<PlaceAccess> {
   });
 }
 
-/** Other places worth pairing with this one — same town, reachable by bus. */
+/** Other places worth pairing with this one, nearest first. */
 export function getNearbyPlaces(placeId: string, limit = 4): Promise<Place[]> {
   return request(`/v1/places/${placeId}/nearby`, () => {
     const place = PLACE_BY_ID.get(placeId);

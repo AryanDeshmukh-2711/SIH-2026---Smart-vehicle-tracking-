@@ -2,7 +2,7 @@
  * Transport seam.
  *
  * Every service function in this folder goes through `request()`. Today it
- * resolves against in-memory fixtures; pointing `HimGatiClient.baseUrl` at a
+ * resolves against in-memory fixtures; pointing `RoutifyClient.baseUrl` at a
  * real gateway and flipping `mode` to `'http'` is the entire migration.
  *
  * The upstreams this is designed to accept, per SRS §11 and the brief:

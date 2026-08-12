@@ -19,7 +19,7 @@ import { Button, ButtonLink, IconButton } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Stars } from '@/components/ui/Meters';
 import { StateBlock } from '@/components/ui/States';
-import { PlaceArt } from '@/components/art/PlaceArt';
+import { PhotoCredit, PlaceArt } from '@/components/art/PlaceArt';
 import { TransitMap } from '@/components/map/TransitMap';
 import { EtaDisplay } from '@/components/transit/Eta';
 import { FuelBadge } from '@/components/transit/Green';
@@ -30,6 +30,7 @@ import { CATEGORY_LABEL } from '@/data/places';
 import { STOP_BY_ID } from '@/data/stops';
 import { duration } from '@/lib/format';
 import { formatDistance, haversineKm } from '@/lib/geo';
+import { shareLink } from '@/lib/share';
 import type { FuelType } from '@/types';
 import { cn } from '@/lib/cn';
 
@@ -87,12 +88,27 @@ export function PlaceDetailScreen() {
   const saved = savedPlaceIds.includes(p.id);
   const distanceFromUser = haversineKm(location.position, p.position);
 
+  /**
+   * Prefilled journey for the planner.
+   *
+   * A place is not a stop, so "Start journey" used to drop the user into an empty
+   * planner and make them work out for themselves which stand serves the temple
+   * they were just reading about. The alighting stop is already known here —
+   * `nearestStopId` is part of the place record — so it travels with the link.
+   * `from` is left to the planner, which defaults to wherever the user is.
+   */
+  const journeyToHere = {
+    toStopId: p.nearestStopId,
+    toPlaceName: p.name,
+    toWalkMin: p.walkFromStopMin,
+  };
+
   return (
     <Screen>
       {/* -------------------------------- hero -------------------------------- */}
       <div className="relative shrink-0">
         <div className="h-[196px]">
-          <PlaceArt seed={p.photoSeed} category={p.category} />
+          <PlaceArt seed={p.photoSeed} category={p.category} placeId={p.id} alt={p.name} priority />
         </div>
         <div className="absolute inset-x-0 top-0">
           <ScreenHeader
@@ -101,6 +117,13 @@ export function PlaceDetailScreen() {
               <>
                 <IconButton
                   label="Share"
+                  onClick={() =>
+                    shareLink({
+                      title: p.name,
+                      text: `${p.name}, ${p.town} — reachable by bus`,
+                      path: `/place/${p.id}`,
+                    })
+                  }
                   className="h-9 w-9 border-0 bg-surface/90 shadow-sm backdrop-blur"
                 >
                   <Share2 size={16} strokeWidth={2.2} />
@@ -185,6 +208,7 @@ export function PlaceDetailScreen() {
               hint="Live service to the nearest stop"
               action="Plan full journey"
               actionTo="/plan"
+              actionState={journeyToHere}
             />
 
             <Card className="border-brand-200">
@@ -251,9 +275,9 @@ export function PlaceDetailScreen() {
                 )}
               </div>
 
-              <ButtonLink to="/plan" block size="lg" className="mt-3">
+              <ButtonLink to="/plan" state={journeyToHere} block size="lg" className="mt-3">
                 <Navigation size={16} strokeWidth={2.3} />
-                Start journey
+                Start journey to {stop?.name.replace(/,.*$/, '') ?? 'the nearest stop'}
               </ButtonLink>
             </Card>
           </section>
@@ -275,6 +299,8 @@ export function PlaceDetailScreen() {
             <SectionHeader title="About" />
             <Card>
               <p className="text-[13px] leading-relaxed text-ink-2">{p.description}</p>
+              {/* Credit is a condition of the photograph's licence, not a nicety. */}
+              <PhotoCredit placeId={p.id} className="mt-3 border-t border-line pt-2.5" />
             </Card>
           </section>
 
@@ -291,7 +317,7 @@ export function PlaceDetailScreen() {
                 {(nearby.data ?? []).map((n) => (
                   <Link key={n.id} to={`/place/${n.id}`} className="w-[152px] shrink-0">
                     <Card padded={false} className="overflow-hidden">
-                      <PlaceArt seed={n.photoSeed} category={n.category} className="h-[80px]" />
+                      <PlaceArt seed={n.photoSeed} category={n.category} placeId={n.id} alt={n.name} className="h-[80px]" />
                       <div className="p-2.5">
                         <div className="truncate text-[12.5px] font-bold text-ink">{n.name}</div>
                         <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-ink-3">

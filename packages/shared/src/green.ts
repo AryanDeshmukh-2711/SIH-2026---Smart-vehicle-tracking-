@@ -1,7 +1,7 @@
 /**
  * Green Score and CO₂ accounting.
  *
- * Every number here is lifted directly from the HimGati SRS §9 so the figures on
+ * Every number here is lifted directly from the Routify SRS §9 so the figures on
  * screen can be defended line by line. Nothing is invented, and anything we had
  * to infer is flagged via `assumptions` rather than quietly rounded in.
  */

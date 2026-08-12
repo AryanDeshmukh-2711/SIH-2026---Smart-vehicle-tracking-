@@ -110,23 +110,35 @@ function nearestStopLabel(position: LatLng): string | null {
 export interface LandmarkMatch {
   landmark: string;
   stop: Stop;
-  distanceKm: number;
 }
 
-/** Every landmark registered against a stop, searchable. */
+/**
+ * Every landmark registered against a stop, searchable.
+ *
+ * A landmark resolves to its stop's position, which is the only coordinate we
+ * actually hold — hence the honest 220 m accuracy on the resulting fix. This used
+ * to also report a fixed `distanceKm: 0.3` for every match, a fabricated number
+ * that no caller read; landmarks carry no coordinates of their own, so there is
+ * nothing to compute it from.
+ *
+ * Direct landmark hits rank above town-wide matches, so searching "Mall Road"
+ * surfaces the Mall Road stop before every other landmark in Shimla.
+ */
 export function searchLandmarks(query: string, limit = 6): LandmarkMatch[] {
   const q = query.trim().toLowerCase();
   if (q.length < 2) return [];
 
-  const out: LandmarkMatch[] = [];
+  const direct: LandmarkMatch[] = [];
+  const byTown: LandmarkMatch[] = [];
+
   for (const stop of STOPS) {
     for (const landmark of stop.landmarks) {
-      if (landmark.toLowerCase().includes(q) || stop.town.toLowerCase().includes(q)) {
-        out.push({ landmark, stop, distanceKm: 0.3 });
-      }
+      if (landmark.toLowerCase().includes(q)) direct.push({ landmark, stop });
+      else if (stop.town.toLowerCase().includes(q)) byTown.push({ landmark, stop });
     }
   }
-  return out.slice(0, limit);
+
+  return [...direct, ...byTown].slice(0, limit);
 }
 
 export function resolveByLandmark(match: LandmarkMatch): ResolvedLocation {
@@ -177,13 +189,13 @@ export interface QrScanResult {
 }
 
 /**
- * A stop QR encodes `himgati://stop/HP-SML-001`. Plain stop ids are accepted too,
+ * A stop QR encodes `routify://stop/HP-SML-001`. Plain stop ids are accepted too,
  * because the code is also printed as text underneath for anyone whose camera
  * cannot focus in poor light.
  */
 export function resolveByQr(payload: string): Promise<QrScanResult> {
   return request('/v1/stops/resolve-qr', () => {
-    const id = payload.trim().replace(/^himgati:\/\/stop\//i, '').toUpperCase();
+    const id = payload.trim().replace(/^routify:\/\/stop\//i, '').toUpperCase();
     const stop = STOP_BY_ID.get(id) ?? STOPS.find((s) => s.smsCode === id);
 
     if (!stop) return { ok: false, error: 'unrecognised' as const };
@@ -214,19 +226,16 @@ export const DEMO_QR_CODES = [
 /* ------------------------ method 6 — route number ------------------------- */
 
 /**
- * No location at all. The user knows which bus they care about, so we skip the
- * question entirely — this is the method that works in a total signal blackout
- * as long as the bus itself reported before entering it.
+ * Method 6 resolves no position at all — that is the point of it. The user knows
+ * which bus they care about, so the "where are you?" question is skipped entirely
+ * and `RouteNumberSheet` sends them straight to that vehicle's tracking screen.
+ *
+ * There is deliberately no `resolveByRouteNumber` here. One used to exist and
+ * returned `{ lat: 0, lng: 0 }` — a point in the Gulf of Guinea. Had anything ever
+ * committed it to app state, every distance, walk time and nearby-stop list in the
+ * app would have been computed from the wrong hemisphere. Nothing called it, so it
+ * is gone rather than left as a trap.
  */
-export function resolveByRouteNumber(routeOrRegistration: string): ResolvedLocation {
-  return {
-    method: 'route-number',
-    label: routeOrRegistration.toUpperCase(),
-    position: { lat: 0, lng: 0 },
-    accuracyM: ACCURACY_M['route-number'],
-    resolvedAt: new Date().toISOString(),
-  };
-}
 
 /** Default used before the user resolves anything — Shimla ISBT. */
 export const DEFAULT_LOCATION: ResolvedLocation = {

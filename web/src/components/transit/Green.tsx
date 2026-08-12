@@ -1,4 +1,4 @@
-import { Fuel, Leaf, Zap } from 'lucide-react';
+import { Fuel, Zap } from 'lucide-react';
 import type { Bus, EmissionNorm, FuelType } from '@/types';
 import { FUEL_LABEL, GREEN_BAND_LABEL, greenBand, greenScoreBreakdown } from '@/lib/green';
 import { Ring } from '@/components/ui/Meters';
@@ -61,7 +61,19 @@ export function NormBadge({ norm, className }: { norm: EmissionNorm; className?:
   );
 }
 
-/** Fuel + norm + score, the trio that must always be visible on a bus card. */
+/**
+ * The vehicle's environmental identity, in one chip.
+ *
+ * This used to be three chips plus an "estimated" note — fuel, emission norm and
+ * a bare score — on every card in the app. Four separate things competing with
+ * the arrival time, and "BS-IV" means nothing to a passenger deciding whether to
+ * board. The norm, the weighting and the arithmetic all live on the bus detail
+ * screen (`GreenScoreCard`), which is where someone actually challenging the
+ * number will look.
+ *
+ * What survives here is the part a passenger can act on: what it burns, coloured
+ * by how clean it is.
+ */
 export function GreenStrip({
   bus,
   score,
@@ -73,20 +85,32 @@ export function GreenStrip({
   showScore?: boolean;
   className?: string;
 }) {
+  const s = FUEL_STYLE[bus.fuel];
+
   return (
-    <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
-      <FuelBadge fuel={bus.fuel} />
-      <NormBadge norm={bus.norm} />
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-[7px] border px-1.5 py-0.5',
+        'text-[11px] font-bold uppercase leading-[16px] tracking-[0.03em]',
+        s.bg,
+        s.fg,
+        s.border,
+        className,
+      )}
+    >
+      {bus.fuel === 'electric' ? (
+        <Zap size={11} strokeWidth={2.8} fill="currentColor" />
+      ) : (
+        <Fuel size={11} strokeWidth={2.5} />
+      )}
+      {FUEL_LABEL[bus.fuel]}
       {showScore && (
-        <span className="inline-flex items-center gap-1 rounded-[7px] border border-line bg-surface-3 px-1.5 py-0.5 text-[11px] font-bold leading-[16px] text-ink-2">
-          <Leaf size={11} strokeWidth={2.5} className={scoreColorClass(score)} />
+        <>
+          <span className="opacity-40">·</span>
           <span className="tnum">{score}</span>
-        </span>
+        </>
       )}
-      {bus.emissionDataEstimated && (
-        <span className="text-[10.5px] font-medium text-ink-4">estimated</span>
-      )}
-    </div>
+    </span>
   );
 }
 

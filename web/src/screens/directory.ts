@@ -34,6 +34,7 @@ export const SCREEN_DIRECTORY = [
     group: 'Personal',
     items: [
       { to: '/trips', label: 'My trips' },
+      { to: '/saved', label: 'Saved places' },
       { to: '/impact', label: 'Sustainability' },
       { to: '/alerts', label: 'Notifications' },
       { to: '/profile', label: 'Profile' },

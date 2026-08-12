@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Accessibility, Bell, BellRing, MapPin, Users } from 'lucide-react';
+import { Accessibility, Bell, BellRing, Users } from 'lucide-react';
 import type { LiveBus, StopPrediction } from '@/types';
 import { OCCUPANCY_LABEL, OCCUPANCY_LEVEL } from '@/lib/format';
 import { OccupancyMeter } from '@/components/ui/Meters';
 import { GreenStrip } from './Green';
-import { EtaDisplay, FreshnessLine, StatusBadge } from './Eta';
+import { EtaDisplay, LiveStatusLine, StatusBadge } from './Eta';
 import { useApp } from '@/store/AppState';
 import { stopName as lookupStopName } from '@/data/stops';
 import { cn } from '@/lib/cn';
@@ -43,18 +43,21 @@ export function BusCard({
   const waiting = live.live.status === 'scheduled';
 
   const nextStopName = shortStopName(live.route.stopIds[live.live.nextStopIndex]);
-  // "Now near" is the last stop *passed*, not the one being approached —
-  // otherwise the card says the bus is already where it is heading.
-  const passedStopName = shortStopName(
-    live.route.stopIds[Math.max(0, live.live.nextStopIndex - 1)],
-  );
 
-  // A vehicle still in its origin bay is departing, not arriving — saying
-  // "arriving" there would be wrong in the one place it matters most.
-  const boardingLabel = stopName ?? shortStopName(live.route.stopIds[0]);
-  const whereLabel = waiting
-    ? `Waiting at ${shortStopName(live.route.stopIds[0])}`
-    : `Now near ${live.live.lastSeenStopName?.replace(/,.*$/, '') ?? passedStopName}`;
+  // The stop this card is about is the one the prediction is for. Callers used to
+  // pass the user's *location label* here, which is only sometimes a stop name:
+  // resolve by landmark and the card read "Arriving at Near Kufri Fun World",
+  // by map pin "Arriving at Pinned location". The prediction is authoritative;
+  // `stopName` is now only a fallback for cards rendered without one.
+  const boardingLabel =
+    shortStopName(prediction?.stopId) || stopName || shortStopName(live.route.stopIds[0]);
+
+  // Only badge the states a passenger can act on. A pill reading "Scheduled"
+  // beside "Departs 1 min" asks the reader to reconcile two facts that do not
+  // need reconciling — and a vehicle still in its bay is not yet late in any
+  // sense they can use, however its paperwork reads.
+  const abnormal =
+    cancelled || live.live.status === 'signal-lost' || live.live.status === 'delayed';
 
   return (
     <div
@@ -64,74 +67,65 @@ export function BusCard({
         className,
       )}
     >
-      <Link to={`/bus/${live.bus.id}`} className="block p-4 pb-3">
-        {/* route identity */}
+      <Link to={`/bus/${live.bus.id}`} className="block p-4 pb-3.5">
+        {/* 1. which bus, where to */}
         <div className="flex items-center gap-2">
           <span className="rounded-[7px] bg-ink px-2 py-[3px] font-display text-[13px] font-extrabold leading-[17px] tracking-[0.01em] text-white">
             {live.route.shortName}
           </span>
           <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ink-2">
-            {live.route.longName}
+            {live.route.destination}
           </span>
-          <StatusBadge status={live.live.status} delayMin={live.live.delayMin} />
+          {abnormal && <StatusBadge status={live.live.status} delayMin={live.live.delayMin} />}
         </div>
 
-        {/* the number that matters */}
-        <div className="mt-3 flex items-end justify-between gap-3">
+        {/* 2. when — the one number the card exists for */}
+        <div className="mt-2.5 flex items-end justify-between gap-3">
           <div className="min-w-0">
             {prediction ? (
               <>
                 <EtaDisplay prediction={prediction} />
                 <div className="mt-1 truncate text-[12px] text-ink-3">
-                  {waiting ? `Departs from ${boardingLabel}` : `Arriving at ${boardingLabel}`}
+                  {waiting ? 'Departs' : 'Arrives'} {boardingLabel}
                   {platform && <span className="text-ink-4"> · {platform}</span>}
                 </div>
               </>
             ) : (
               <>
                 <div className="font-display text-[24px] font-extrabold leading-none text-ink">
-                  {cancelled
-                    ? 'Cancelled'
-                    : live.live.status === 'signal-lost'
-                      ? 'No signal'
-                      : `${live.live.speedKmph} km/h`}
+                  {cancelled ? 'Cancelled' : live.live.status === 'signal-lost' ? 'No signal' : `${live.live.speedKmph} km/h`}
                 </div>
                 <div className="mt-1 truncate text-[12px] text-ink-3">
-                  {cancelled ? 'Replacement service at 18:15' : `Next stop ${nextStopName}`}
+                  {cancelled ? 'No replacement listed' : `Next stop ${nextStopName}`}
                 </div>
               </>
             )}
           </div>
 
+          {/* 3. what it is like to board */}
           <div className="shrink-0 text-right">
-            <div className="font-display text-[13px] font-bold text-ink">
-              {live.bus.registration}
-            </div>
-            <div className="mt-1 flex items-center justify-end gap-1.5 text-[11.5px] text-ink-3">
+            <div className="flex items-center justify-end gap-1.5 text-[11.5px] text-ink-3">
               <OccupancyMeter level={OCCUPANCY_LEVEL[live.live.occupancy]} />
               {OCCUPANCY_LABEL[live.live.occupancy]}
+            </div>
+            <div className="mt-1.5 flex items-center justify-end gap-1.5">
+              <GreenStrip bus={live.bus} score={live.greenScore} showScore={false} />
+              {live.bus.wheelchairAccessible && (
+                <Accessibility size={13} className="shrink-0 text-ink-4" strokeWidth={2.2} />
+              )}
             </div>
           </div>
         </div>
 
-        {/* where it is right now */}
-        <div className="mt-3 flex items-center gap-1.5 text-[12px] text-ink-2">
-          <MapPin size={13} strokeWidth={2.3} className="shrink-0 text-ink-4" />
-          <span className="truncate">{whereLabel}</span>
-        </div>
-
-        <FreshnessLine live={live.live} className="mt-1.5" />
+        {/* one caveat, at most */}
+        <LiveStatusLine live={live.live} className="mt-2.5" />
       </Link>
 
-      {/* green identity + actions */}
-      <div className="flex items-center gap-2 border-t border-line bg-surface-2 px-4 py-2.5">
-        <GreenStrip bus={live.bus} score={live.greenScore} className="min-w-0 flex-1" />
-
-        {live.bus.wheelchairAccessible && (
-          <Accessibility size={14} className="shrink-0 text-ink-3" strokeWidth={2.2} />
-        )}
-
-        {showTrack && !cancelled && (
+      {showTrack && !cancelled && (
+        <div className="flex items-center justify-between gap-2 border-t border-line bg-surface-2 px-4 py-2">
+          <span className="truncate font-display text-[12px] font-bold text-ink-3">
+            {live.bus.registration}
+          </span>
           <button
             onClick={() => toggleTracked(live.bus.id)}
             aria-label={tracked ? 'Stop notifying me' : 'Notify me'}
@@ -145,8 +139,8 @@ export function BusCard({
             {tracked ? <BellRing size={12} strokeWidth={2.4} /> : <Bell size={12} strokeWidth={2.4} />}
             {tracked ? 'Tracking' : 'Notify me'}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

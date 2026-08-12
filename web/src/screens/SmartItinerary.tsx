@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bus,
@@ -56,12 +56,32 @@ export function SmartItineraryScreen() {
   const toggle = (i: Interest) =>
     setInterests((list) => (list.includes(i) ? list.filter((x) => x !== i) : [...list, i]));
 
+  // Sequence guard: repeated taps on Build must not let an earlier, slower plan
+  // overwrite the newest one, and a plan resolving after unmount must be dropped.
+  const buildSeq = useRef(0);
+
+  useEffect(
+    () => () => {
+      buildSeq.current += 1;
+    },
+    [],
+  );
+
   const build = () => {
+    const seq = ++buildSeq.current;
     setBusy(true);
     setResult(null);
+
     generateItinerary({ baseTown: town, interests, minutes })
-      .then(setResult)
-      .finally(() => setBusy(false));
+      .then((r) => {
+        if (seq === buildSeq.current) setResult(r);
+      })
+      .catch(() => {
+        if (seq === buildSeq.current) setResult(null);
+      })
+      .finally(() => {
+        if (seq === buildSeq.current) setBusy(false);
+      });
   };
 
   return (
@@ -287,7 +307,7 @@ function ItineraryResult({ itinerary, onRebuild }: { itinerary: Itinerary; onReb
                     <Card padded={false} className="overflow-hidden">
                       <div className="flex gap-3">
                         <div className="h-[86px] w-[84px] shrink-0">
-                          <PlaceArt seed={s.place.photoSeed} category={s.place.category} />
+                          <PlaceArt seed={s.place.photoSeed} category={s.place.category} placeId={s.place.id} alt={s.place.name} />
                         </div>
                         <div className="min-w-0 flex-1 py-2.5 pr-3">
                           <div className="flex items-baseline gap-2">

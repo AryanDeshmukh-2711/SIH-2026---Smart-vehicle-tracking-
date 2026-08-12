@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Check,
@@ -22,6 +22,7 @@ import { Toggle } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { Notice } from '@/components/ui/States';
 import { useApp } from '@/store/AppState';
+import { useTicker } from '@/hooks/useLive';
 import { downloadPack, lastSyncAt, removePack, storageUsedMb } from '@/services/offline';
 import { OFFLINE_PACKS } from '@/data/alerts';
 import { relativeAge } from '@/lib/eta';
@@ -41,13 +42,35 @@ export function OfflineScreen() {
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [syncing, setSyncing] = useState(false);
 
+  // Leaving the screen must stop in-flight downloads and the sync timer rather
+  // than leaving intervals running against a component that is gone.
+  const alive = useRef(true);
+  const cancels = useRef<Array<() => void>>([]);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      alive.current = false;
+      cancels.current.forEach((c) => c());
+      cancels.current = [];
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+    },
+    [],
+  );
+
   const refresh = () => setPacks(OFFLINE_PACKS.map((p) => ({ ...p })));
 
   const start = (id: string) => {
     setProgress((p) => ({ ...p, [id]: 0 }));
-    const { promise } = downloadPack(id, (pct) => setProgress((p) => ({ ...p, [id]: pct })));
+
+    const { promise, cancel } = downloadPack(id, (pct) => {
+      if (alive.current) setProgress((p) => ({ ...p, [id]: pct }));
+    });
+    cancels.current.push(cancel);
+
     promise
       .then(() => {
+        if (!alive.current) return;
         refresh();
         setProgress((p) => {
           const next = { ...p };
@@ -59,19 +82,26 @@ export function OfflineScreen() {
   };
 
   const remove = (id: string) => {
-    removePack(id).then(refresh);
+    removePack(id).then(() => {
+      if (alive.current) refresh();
+    });
   };
 
   const doSync = () => {
     setSyncing(true);
-    setTimeout(() => {
+    syncTimer.current = setTimeout(() => {
+      if (!alive.current) return;
       resync();
       refresh();
       setSyncing(false);
     }, 1100);
   };
 
-  const stale = Math.round((Date.now() - lastSync.getTime()) / 60_000);
+  // This screen's entire argument is that cached data is labelled with its age, so
+  // the age has to actually advance. Without a ticker every "N min ago" on the
+  // screen froze at whatever it read when the screen was opened.
+  useTicker(30_000);
+  const stale = Math.max(0, Math.round((Date.now() - lastSync.getTime()) / 60_000));
   const downloaded = packs.filter((p) => p.downloaded);
   const storage = storageUsedMb(packs);
   const lastPackSync = lastSyncAt(packs);

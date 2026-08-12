@@ -1,5 +1,5 @@
 /**
- * HimGati domain model.
+ * Routify domain model.
  *
  * These types are deliberately shaped to be a thin, lossless projection of
  * GTFS + GTFS-Realtime so the mock service layer in `src/services` can later be
@@ -19,7 +19,7 @@ export type Timestamp = string;
 
 export type StopKind = 'isbt' | 'bus-stand' | 'stop' | 'halt';
 
-/** GTFS `stops.txt` + HimGati's QR extension. */
+/** GTFS `stops.txt` + Routify's QR extension. */
 export interface Stop {
   id: string; // GTFS stop_id — printed on the physical QR plate, e.g. HP-SML-001
   name: string;
@@ -129,6 +129,15 @@ export interface VehiclePosition {
   predictions: StopPrediction[];
   /** Set while the bus is inside a known dead zone (SRS §8.5). */
   lastSeenStopName?: string;
+  /**
+   * Current road speed as a fraction of the timetable's assumed speed. 1.0 is
+   * on-pace, below 1 is congested, above 1 is a clear road. Undefined when the
+   * vehicle is not moving or not reporting — congestion is an observation, and we
+   * do not have one for a stationary or silent bus.
+   */
+  congestion?: number;
+  /** Named cause when a known bottleneck is what is slowing the vehicle. */
+  delayCause?: string;
 }
 
 /** What most cards need: the static bus, its route and its live state in one object. */
@@ -309,7 +318,7 @@ export interface UserProfile {
 /* ------------------------------- location -------------------------------- */
 
 /**
- * The six ways HimGati can establish "where the user is". GPS is only one of
+ * The six ways Routify can establish "where the user is". GPS is only one of
  * them — in the hills it is frequently the worst one.
  */
 export type LocationMethod = 'gps' | 'landmark' | 'map-pin' | 'stop-search' | 'qr' | 'route-number';

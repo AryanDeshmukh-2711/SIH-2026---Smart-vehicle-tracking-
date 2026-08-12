@@ -12,6 +12,7 @@ import {
   Search,
   SearchX,
   Ticket,
+  WifiOff,
   X,
 } from 'lucide-react';
 import type { JourneyOption, JourneyPreference, Stop } from '@/types';
@@ -22,7 +23,8 @@ import { FieldButton, TextField } from '@/components/ui/Field';
 import { Sheet } from '@/components/ui/Sheet';
 import { ListSkeleton, StateBlock } from '@/components/ui/States';
 import { GreenStrip } from '@/components/transit/Green';
-import { PREFERENCE_LABEL, planJourney } from '@/services/journey';
+import { PREFERENCE_LABEL, planJourney, reverseOnlyCorridor } from '@/services/journey';
+import { OfflineError } from '@/services/client';
 import { matchStops } from '@/services/transit';
 import { STOP_BY_ID } from '@/data/stops';
 import { BUS_BY_ID } from '@/data/buses';
@@ -51,6 +53,9 @@ export function JourneyPlannerScreen() {
   const routerState = (useRouterLocation().state ?? {}) as {
     fromStopId?: string | null;
     toStopId?: string | null;
+    /** Set when the destination came from a place rather than a stop search. */
+    toPlaceName?: string;
+    toWalkMin?: number;
   };
   const { location, user } = useApp();
 
@@ -62,17 +67,43 @@ export function JourneyPlannerScreen() {
   const [picking, setPicking] = useState<'from' | 'to' | null>(null);
   const [options, setOptions] = useState<JourneyOption[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<'offline' | 'failed' | null>(null);
 
+  // The planner runs behind a variable-latency transport, so a slower earlier
+  // request can land after a faster later one. Without this guard, tapping
+  // through the preference chips could leave the results of a superseded query
+  // on screen, sorted by a preference the user is no longer on. Clearing
+  // `options` up front also means the skeleton shows on every re-plan rather
+  // than only the first — previously stale journeys stayed visible throughout.
   useEffect(() => {
     if (!fromId || !toId) {
       setOptions(null);
+      setBusy(false);
       return;
     }
+
+    let current = true;
     setBusy(true);
+    setOptions(null);
+    setFailure(null);
+
     planJourney({ fromStopId: fromId, toStopId: toId, preference })
-      .then(setOptions)
-      .catch(() => setOptions([]))
-      .finally(() => setBusy(false));
+      .then((result) => {
+        if (current) setOptions(result);
+      })
+      .catch((e: unknown) => {
+        // "Planning failed" and "no such journey exists" are different answers.
+        // Collapsing both into an empty result told an offline user their two
+        // stops were unconnected, which is a claim the app cannot make offline.
+        if (current) setFailure(e instanceof OfflineError ? 'offline' : 'failed');
+      })
+      .finally(() => {
+        if (current) setBusy(false);
+      });
+
+    return () => {
+      current = false;
+    };
   }, [fromId, toId, preference]);
 
   const from = fromId ? STOP_BY_ID.get(fromId) : undefined;
@@ -82,6 +113,17 @@ export function JourneyPlannerScreen() {
     setFromId(toId);
     setToId(fromId);
   };
+
+  const placeContext =
+    routerState.toPlaceName != null
+      ? { name: routerState.toPlaceName, walkMin: routerState.toWalkMin ?? 0 }
+      : null;
+
+  // Only consulted when the planner came back empty.
+  const reverseCorridor = useMemo(
+    () => (fromId && toId ? reverseOnlyCorridor(fromId, toId) : null),
+    [fromId, toId],
+  );
 
   return (
     <Screen>
@@ -108,6 +150,21 @@ export function JourneyPlannerScreen() {
               className="pr-12"
             />
           </div>
+
+          {/*
+            When the destination was prefilled from a place, say so. Otherwise the
+            planner silently shows a bus stand the user never typed and never
+            mentioned — the stop is right, but the reason for it is invisible.
+          */}
+          {placeContext && to?.id === routerState.toStopId && (
+            <div className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-snug text-ink-3">
+              <Footprints size={12} strokeWidth={2.4} className="mt-px shrink-0 text-brand-600" />
+              <span>
+                Nearest stop to <span className="font-semibold text-ink-2">{placeContext.name}</span>
+                {placeContext.walkMin > 0 && <> · {placeContext.walkMin} min walk at the far end</>}
+              </span>
+            </div>
+          )}
 
           <button
             onClick={swap}
@@ -136,20 +193,55 @@ export function JourneyPlannerScreen() {
             body="Choose where you are starting from and where you want to reach. We will find every bus combination between them."
             tone="brand"
           />
-        ) : busy && !options ? (
+        ) : busy ? (
           <ListSkeleton rows={3} />
-        ) : options && options.length === 0 ? (
+        ) : failure ? (
           <StateBlock
-            icon={<SearchX size={24} strokeWidth={1.9} />}
-            title="No bus route connects these stops"
-            body="There is no direct or single-transfer service between them in the current timetable. Try a nearby district hub such as Shimla ISBT or Mandi."
+            icon={<WifiOff size={24} strokeWidth={1.9} />}
+            title={failure === 'offline' ? 'Planning needs a connection' : 'Could not plan that journey'}
+            body={
+              failure === 'offline'
+                ? 'Journey planning compares live departures, so it cannot run offline. The printed timetable for each stop is still saved on your device.'
+                : 'Something went wrong on our side rather than with your journey. Try again in a moment.'
+            }
             tone="warn"
             actions={
-              <Link to="/map" className="text-[13px] font-semibold text-brand-600">
-                Browse the network map →
-              </Link>
+              location.stopId ? (
+                <Link
+                  to={`/stop/${location.stopId}`}
+                  className="text-[13px] font-semibold text-brand-600"
+                >
+                  Open the saved timetable →
+                </Link>
+              ) : undefined
             }
           />
+        ) : options && options.length === 0 ? (
+          reverseCorridor ? (
+            <StateBlock
+              icon={<ArrowUpDown size={24} strokeWidth={1.9} />}
+              title={`Route ${reverseCorridor.shortName} is only modelled one way`}
+              body={`Both stops are on ${reverseCorridor.longName}, but this build carries that corridor in the ${reverseCorridor.origin} → ${reverseCorridor.destination} direction only. The return service exists in reality; it is not in this dataset yet.`}
+              tone="warn"
+              actions={
+                <button onClick={swap} className="text-[13px] font-semibold text-brand-600">
+                  Swap to {reverseCorridor.origin} → {reverseCorridor.destination} →
+                </button>
+              }
+            />
+          ) : (
+            <StateBlock
+              icon={<SearchX size={24} strokeWidth={1.9} />}
+              title="No bus route connects these stops"
+              body="There is no direct or single-transfer service between them in the current timetable. Try a nearby district hub such as Shimla ISBT or Mandi."
+              tone="warn"
+              actions={
+                <Link to="/map" className="text-[13px] font-semibold text-brand-600">
+                  Browse the network map →
+                </Link>
+              }
+            />
+          )
         ) : (
           <Stack gap={4}>
             <SectionHeader

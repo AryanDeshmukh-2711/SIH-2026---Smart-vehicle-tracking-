@@ -16,9 +16,17 @@ export function hhmm24(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** "10:30" → "10:30 AM" */
-export function pretty24(t: string): string {
+/**
+ * "10:30" → "10:30 AM"
+ *
+ * Returns an em dash rather than "Invalid Date" for a missing or malformed time.
+ * Several callers pass an optional field through here, and a broken clock reading
+ * is worse than an admitted absence.
+ */
+export function pretty24(t: string | undefined | null): string {
+  if (!t) return '—';
   const [h, m] = t.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return '—';
   const d = new Date();
   d.setHours(h, m, 0, 0);
   return hhmm(d);

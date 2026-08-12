@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import {
+  ChevronRight,
   AlertTriangle,
   Ban,
   BellRing,
@@ -112,15 +114,25 @@ export function AlertCard({
   );
 }
 
-/** One-line banner used at the top of a route or stop screen. */
+/**
+ * One-line banner used at the top of a route or stop screen.
+ *
+ * Genuinely one line now. It used to print the title *and* the full body, which
+ * on Home meant a three-line paragraph of disruption prose sitting above the
+ * departures the reader actually came for. The title carries the warning; the
+ * body is a tap away on the notifications screen.
+ */
 export function AlertStrip({ alert }: { alert: ServiceAlert }) {
   const Icon = KIND_ICON[alert.kind];
   const style = SEVERITY_STYLE[alert.severity];
+  const tone =
+    alert.severity === 'severe' ? 'text-bad' : alert.severity === 'warning' ? 'text-warn' : 'text-info';
 
   return (
-    <div
+    <Link
+      to="/alerts"
       className={cn(
-        'flex items-start gap-2 rounded-field border px-3 py-2.5',
+        'flex items-center gap-2 rounded-field border px-3 py-2 transition-opacity hover:opacity-90',
         style.border,
         alert.severity === 'severe'
           ? 'bg-bad-bg'
@@ -129,25 +141,11 @@ export function AlertStrip({ alert }: { alert: ServiceAlert }) {
             : 'bg-info-bg',
       )}
     >
-      <Icon
-        size={15}
-        strokeWidth={2.3}
-        className={cn(
-          'mt-px shrink-0',
-          alert.severity === 'severe' ? 'text-bad' : alert.severity === 'warning' ? 'text-warn' : 'text-info',
-        )}
-      />
-      <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            'text-[12.5px] font-bold leading-snug',
-            alert.severity === 'severe' ? 'text-bad' : alert.severity === 'warning' ? 'text-warn' : 'text-info',
-          )}
-        >
-          {alert.title}
-        </div>
-        <div className="mt-0.5 text-[12px] leading-relaxed text-ink-2">{alert.body}</div>
-      </div>
-    </div>
+      <Icon size={15} strokeWidth={2.3} className={cn('shrink-0', tone)} />
+      <span className={cn('min-w-0 flex-1 truncate text-[12.5px] font-semibold', tone)}>
+        {alert.title}
+      </span>
+      <ChevronRight size={14} strokeWidth={2.5} className={cn('shrink-0 opacity-60', tone)} />
+    </Link>
   );
 }
