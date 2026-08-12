@@ -1,8 +1,8 @@
-# 🚌 HimGati
+# 🚌 Routify
 
 ### Know where your bus is. Know when it'll reach you. Know how clean it is.
 
-HimGati is a smart bus-tracking platform built for Himachal Pradesh — a place where GPS gets confused by the mountains and mobile signal disappears for miles at a time. So instead of showing a dot on a map and hoping for the best, HimGati tells you the *truth*: exactly how sure it is about where your bus is, and gives you five other ways to find your stop when GPS gives up.
+Routify is a smart bus-tracking platform built for Himachal Pradesh — a place where GPS gets confused by the mountains and mobile signal disappears for miles at a time. So instead of showing a dot on a map and hoping for the best, HimGati tells you the *truth*: exactly how sure it is about where your bus is, and gives you five other ways to find your stop when GPS gives up.
 
 Everything runs in the browser. Built for **SIH 2026**.
 
