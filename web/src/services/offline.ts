@@ -4,10 +4,18 @@ import { request } from './client';
 
 /* -------------------------------- alerts ---------------------------------- */
 
+/**
+ * Live service alerts.
+ *
+ * Read from the API, because alerts are the one part of the network picture a
+ * depot changes while people are looking at it — a landslide closure published
+ * from the admin console has to reach a traveller's phone, not wait for the next
+ * app release. The bundled list is the fallback when the server is unreachable.
+ */
 export function getAlerts(): Promise<ServiceAlert[]> {
   return request('/v1/alerts', () =>
     ALERTS.slice().sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime()),
-    { cacheable: true },
+    { cacheable: true, remote: true },
   );
 }
 

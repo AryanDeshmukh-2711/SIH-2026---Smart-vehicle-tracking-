@@ -135,16 +135,55 @@ async function seedBuses(): Promise<void> {
 /**
  * One open trip per bus, on the departure slot its index maps to. Incoming GPS
  * is attached to these; without them a reading has nothing to belong to.
+ *
+ * Trips here are long-lived — nothing in the demo ends a run — so an open trip
+ * survives from the day it was first seeded. Any metric phrased as "today" then
+ * reads zero on day two while seventeen buses are visibly moving, which looks
+ * like a broken dashboard rather than stale fixtures.
+ *
+ * So a re-seed re-dates open trips onto today's timetable. `startedAt` is set
+ * here rather than cleared: only a driver pressing "start trip" ever sets it, so
+ * a null would never be filled in by the vehicle feed and the count would stay
+ * at zero.
  */
 async function seedTrips(): Promise<void> {
   let created = 0;
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const stale = await prisma.trip.findMany({
+    where: {
+      status: { in: ['running', 'delayed', 'signal_lost'] },
+      OR: [{ startedAt: { lt: startOfToday } }, { startedAt: null }],
+    },
+    select: { id: true, scheduledAt: true },
+  });
+
+  for (const trip of stale) {
+    await prisma.trip.update({
+      where: { id: trip.id },
+      // Today, at the departure slot this run was booked on. A time still in the
+      // future would claim the bus started before it was due, so those fall back
+      // to now — it is already moving, whatever the timetable says.
+      data: { startedAt: earlierOfNowAnd(atTodayHHmm(trip.scheduledAt)) },
+    });
+  }
+  if (stale.length) logger.info({ redated: stale.length }, 'redated open trips onto today');
 
   for (const route of ROUTES) {
     const fleet = BUSES.filter((b) => b.routeId === route.id);
 
     for (const [i, bus] of fleet.entries()) {
+      // `cancelled` counts as covered. One bus in the demo is pinned cancelled
+      // by the vehicle feed, so treating it as needing a trip would mint a fresh
+      // run on every seed, each cancelled seconds later — and the punctuality
+      // report would fill up with cancellations that never happened.
       const existing = await prisma.trip.findFirst({
-        where: { busId: bus.id, status: { in: ['scheduled', 'running', 'delayed', 'signal_lost'] } },
+        where: {
+          busId: bus.id,
+          status: { in: ['scheduled', 'running', 'delayed', 'signal_lost', 'cancelled'] },
+        },
       });
       if (existing) continue;
 
@@ -160,6 +199,19 @@ async function seedTrips(): Promise<void> {
     }
   }
   logger.info({ created }, 'seeded trips');
+}
+
+/** "05:30" as a Date at that time today. */
+function atTodayHHmm(hhmm: string): Date {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h ?? 0, m ?? 0, 0, 0);
+  return d;
+}
+
+function earlierOfNowAnd(when: Date): Date {
+  const now = new Date();
+  return when < now ? when : now;
 }
 
 /**
