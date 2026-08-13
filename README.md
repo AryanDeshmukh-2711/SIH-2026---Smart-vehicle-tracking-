@@ -210,7 +210,7 @@ Both live at `/driver` and `/admin` in the same app, gated by role. Sign in at *
 - Publish and withdraw service alerts, attributed to the person publishing them.
 - Bulk route import by CSV.
 - Append-only audit log of every privileged action and sign-in.
-
+ 
 ## 🚧 Not built yet
 
 The SMS and phone-line (IVR) fallbacks are *shown* in the app — the stop screen renders the exact text reply a gateway would send — but the telecom gateway itself is outside this build. Route and stop creation is via CSV import rather than a full editor.
