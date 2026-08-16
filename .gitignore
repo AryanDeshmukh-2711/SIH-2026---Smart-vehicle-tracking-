@@ -7,5 +7,5 @@ dev-dist
 .env
 .env.local
 .vite
-*.log
+*.log 
 .claude/
