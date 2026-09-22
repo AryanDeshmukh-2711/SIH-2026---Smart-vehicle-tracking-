@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -15,9 +15,10 @@ import { DockedSheet } from '@/components/ui/Sheet';
 import { Chip, ChipRow, StatusPill } from '@/components/ui/Badge';
 import { TransitMap } from '@/components/map/TransitMap';
 import { GreenStrip } from '@/components/transit/Green';
-import { EtaDisplay, FreshnessLine, StatusBadge } from '@/components/transit/Eta';
+import { EtaDisplay, LiveStatusLine, StatusBadge } from '@/components/transit/Eta';
 import { OccupancyMeter } from '@/components/ui/Meters';
 import { StateBlock } from '@/components/ui/States';
+import type { LatLng } from '@/types';
 import { useLiveFleet } from '@/hooks/useLive';
 import { useApp } from '@/store/AppState';
 import { ROUTES, ROUTE_BY_ID } from '@/data/routes';
@@ -27,6 +28,10 @@ import { formatDistance } from '@/lib/geo';
 import { cn } from '@/lib/cn';
 
 type FleetFilter = 'all' | 'clean' | 'running';
+
+/** Whole-network view: roughly the centroid of the eight modelled corridors. */
+const NETWORK_CENTER: LatLng = { lat: 31.55, lng: 77.05 };
+const NETWORK_ZOOM = 9;
 
 /**
  * Live network map.
@@ -42,9 +47,20 @@ export function LiveMapScreen() {
   const fleet = useLiveFleet();
 
   const routeFilter = params.get('route');
-  const [selectedId, setSelectedId] = useState<string | null>(params.get('bus'));
+  const busParam = params.get('bus');
+  const [selectedId, setSelectedId] = useState<string | null>(busParam);
   const [filter, setFilter] = useState<FleetFilter>('all');
   const [showStops, setShowStops] = useState(true);
+  /** Set when the user asks to be recentred. The key re-fires an unchanged position. */
+  const [recentre, setRecentre] = useState<LatLng | undefined>();
+  const [recentreKey, setRecentreKey] = useState(0);
+
+  // `?bus=` is read on mount only by `useState`. Navigating here from a bus
+  // screen while already on the map changes the query string without remounting,
+  // so the deep link has to be honoured on change too.
+  useEffect(() => {
+    if (busParam) setSelectedId(busParam);
+  }, [busParam]);
 
   const visible = useMemo(() => {
     let list = fleet.filter((b) => b.live.status !== 'scheduled');
@@ -55,6 +71,12 @@ export function LiveMapScreen() {
   }, [fleet, routeFilter, filter]);
 
   const selected = selectedId ? fleet.find((b) => b.bus.id === selectedId) : undefined;
+
+  // Choosing a vehicle hands the viewport back to that route's fitBounds.
+  const selectBus = (busId: string) => {
+    setRecentre(undefined);
+    setSelectedId(busId);
+  };
 
   const shownRoutes = useMemo(() => {
     if (selected) return [selected.route];
@@ -81,19 +103,30 @@ export function LiveMapScreen() {
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {/* -------------------------------- map -------------------------------- */}
-      <div className="absolute inset-0">
+      {/*
+        `z-0` is load-bearing, not cosmetic. Leaflet gives its own panes
+        z-index 400-700; with this wrapper left at `z-index: auto` it creates no
+        stacking context, so those panes were hoisted out and compared directly
+        against the chrome's `z-10` — and won. The back button and the bottom
+        sheet were rendered *behind* the map and could not be clicked at all,
+        which left the full-screen map with no way out. `z-0` on a positioned
+        element does establish a stacking context, so Leaflet's z-indexes stay
+        contained inside it.
+      */}
+      <div className="absolute inset-0 z-0">
         <TransitMap
           buses={visible}
           routes={shownRoutes}
           stops={shownStops}
           selectedBusId={selectedId ?? undefined}
-          onSelectBus={setSelectedId}
+          onSelectBus={selectBus}
           onSelectStop={(id) => navigate(`/stop/${id}`)}
           userPosition={location.position}
           userAccurate={location.accuracyM < 200}
-          fitTo={fitTo}
-          zoom={routeFilter || selected ? undefined : 9}
-          center={!routeFilter && !selected ? { lat: 31.55, lng: 77.05 } : undefined}
+          fitTo={recentre ? undefined : fitTo}
+          zoom={recentre ? 14 : routeFilter || selected ? undefined : NETWORK_ZOOM}
+          center={recentre ?? (!routeFilter && !selected ? NETWORK_CENTER : undefined)}
+          recenterKey={recentreKey}
         />
       </div>
 
@@ -173,8 +206,15 @@ export function LiveMapScreen() {
       <div className="pointer-events-none relative z-10 shrink-0">
         <div className="pointer-events-auto mb-2 flex justify-end px-3">
           <button
+            onClick={() => {
+              // Deselecting first, so the selected route's fitBounds does not
+              // immediately pull the viewport back off the user's position.
+              setSelectedId(null);
+              setRecentre({ ...location.position });
+              setRecentreKey((n) => n + 1);
+            }}
             aria-label="Centre on my location"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink-2 shadow-md"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink-2 shadow-md transition-colors hover:bg-surface-3"
           >
             <Crosshair size={18} strokeWidth={2.2} />
           </button>
@@ -228,7 +268,7 @@ export function LiveMapScreen() {
                   <StatusBadge status={selected.live.status} delayMin={selected.live.delayMin} />
                 </div>
 
-                <FreshnessLine live={selected.live} className="mt-2" />
+                <LiveStatusLine live={selected.live} className="mt-2" />
 
                 <div className="mt-3 flex items-center gap-2 border-t border-line pt-3">
                   <GreenStrip
@@ -275,7 +315,7 @@ export function LiveMapScreen() {
                     {visible.slice(0, 8).map((b) => (
                       <button
                         key={b.bus.id}
-                        onClick={() => setSelectedId(b.bus.id)}
+                        onClick={() => selectBus(b.bus.id)}
                         className="flex items-center gap-2.5 rounded-field border border-line px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
                       >
                         <span className="w-9 shrink-0 rounded-[6px] bg-ink py-1 text-center text-[11px] font-extrabold text-white">

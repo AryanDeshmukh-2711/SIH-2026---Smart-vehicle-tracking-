@@ -165,13 +165,19 @@ driver.post('/trips/:tripId/report', async (req, res) => {
   if (!allowed) return res.status(403).json(fail('this trip is assigned to another driver'));
 
   // Straight onto the same operator channel the depot systems use, so there is
-  // one path for "how full is it" regardless of who reported it.
-  await ingestStatus({
-    busId: trip.busId,
-    occupancy: parsed.data.occupancy,
-    delayMin: parsed.data.delayMin,
-    timestamp: Date.now(),
-  });
+  // one path for "how full is it" regardless of who reported it. Tagged as a
+  // driver report, which outranks device telemetry on crowd level — the person
+  // on the bus can see the aisle, and the estimate arriving every few seconds
+  // would otherwise overwrite them immediately.
+  await ingestStatus(
+    {
+      busId: trip.busId,
+      occupancy: parsed.data.occupancy,
+      delayMin: parsed.data.delayMin,
+      timestamp: Date.now(),
+    },
+    'driver',
+  );
 
   await recordAudit({
     actorId: req.user!.id,

@@ -2,7 +2,7 @@
 @import 'leaflet/dist/leaflet.css';
 
 /* ------------------------------------------------------------------------- */
-/*  HimGati design system                                                     */
+/*  Routify design system                                                     */
 /*  One accent (deep teal), a navy-tinted neutral ramp, hairline borders and  */
 /*  very restrained elevation. No decorative gradients, no pill-shaped        */
 /*  primary controls — this should read as infrastructure, not a toy.         */
@@ -156,6 +156,18 @@
   font-family: var(--font-sans);
   outline: none;
 }
+
+/*
+ * Basemap tone.
+ *
+ * Voyager is used for its road hierarchy — Positron's roads vanish into the
+ * background once you zoom past the network view. Pulling the saturation and
+ * contrast back keeps that geometry legible while leaving the route lines,
+ * vehicle markers and stop pins as the loudest things on the map.
+ */
+.routify-tiles {
+  filter: saturate(0.62) contrast(0.94) brightness(1.03);
+}
 .leaflet-control-attribution {
   font-size: 9px !important;
   background: rgba(255, 255, 255, 0.72) !important;
@@ -185,13 +197,13 @@
 .leaflet-marker-shadow {
   transition: transform 900ms linear;
 }
-.himgati-marker {
+.routify-marker {
   background: transparent;
   border: none;
 }
 
 /* Subtle live-data pulse used by the "signal fresh" dot. */
-@keyframes himgati-pulse {
+@keyframes routify-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(15, 107, 98, 0.45);
   }
@@ -203,10 +215,10 @@
   }
 }
 .pulse-dot {
-  animation: himgati-pulse 2.2s var(--ease-out-soft) infinite;
+  animation: routify-pulse 2.2s var(--ease-out-soft) infinite;
 }
 
-@keyframes himgati-shimmer {
+@keyframes routify-shimmer {
   100% {
     transform: translateX(100%);
   }
@@ -222,7 +234,7 @@
   inset: 0;
   transform: translateX(-100%);
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
-  animation: himgati-shimmer 1.4s infinite;
+  animation: routify-shimmer 1.4s infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Keyboard,
   Loader2,
+  Navigation,
   QrCode,
   ScanLine,
   X,
@@ -18,9 +19,12 @@ import { TextField } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { StateBlock } from '@/components/ui/States';
 import { BusRow } from '@/components/transit/BusCard';
-import { useDepartures } from '@/hooks/useLive';
+import { BoardingGuide } from '@/components/transit/BoardingGuide';
+import { DestinationSheet } from '@/components/transit/DestinationSheet';
+import { useAsync, useDepartures } from '@/hooks/useLive';
 import { useApp } from '@/store/AppState';
 import { DEMO_QR_CODES, resolveByQr } from '@/services/location';
+import { getBoardingPlan, type DestinationOption } from '@/services/destination';
 import { routesServingStop } from '@/data/routes';
 
 type Phase = 'scanning' | 'resolving' | 'found' | 'error';
@@ -44,25 +48,63 @@ export function QrScannerScreen() {
   const [manual, setManual] = useState(false);
   const [code, setCode] = useState('');
 
+  /* --------------------------- where they're going -------------------------- */
+  const [askingWhere, setAskingWhere] = useState(false);
+  const [destination, setDestination] = useState<DestinationOption | null>(null);
+
   const departures = useDepartures(stop?.id, 4);
 
+  // Resolved once per (stop, destination) pair. `useAsync` carries the loading and
+  // error states and drops results from a superseded pair.
+  const plan = useAsync(
+    () =>
+      stop && destination
+        ? getBoardingPlan(stop.id, destination)
+        : Promise.resolve(null),
+    [stop?.id, destination?.kind, destination?.id],
+  );
+
+  // Identifies the in-flight scan. Tapping a second plate, or resetting mid-scan,
+  // must invalidate the first — otherwise a slower earlier resolve lands on top
+  // and the screen reports the wrong stop as identified.
+  const scanSeq = useRef(0);
+
+  useEffect(
+    () => () => {
+      scanSeq.current += 1;
+    },
+    [],
+  );
+
   const scan = (payload: string) => {
+    const seq = ++scanSeq.current;
     setPhase('resolving');
-    resolveByQr(payload).then((r) => {
-      if (r.ok && r.stop && r.location) {
-        setStop(r.stop);
-        setLocation(r.location);
-        setPhase('found');
-      } else {
-        setPhase('error');
-      }
-    });
+
+    resolveByQr(payload)
+      .then((r) => {
+        if (seq !== scanSeq.current) return;
+        if (r.ok && r.stop && r.location) {
+          setStop(r.stop);
+          setLocation(r.location);
+          setPhase('found');
+        } else {
+          setPhase('error');
+        }
+      })
+      .catch(() => {
+        if (seq === scanSeq.current) setPhase('error');
+      });
   };
 
   const reset = () => {
+    scanSeq.current += 1;
     setStop(null);
     setPhase('scanning');
     setCode('');
+    // A new plate means a new starting point, so the old destination answer no
+    // longer applies to anything on screen.
+    setDestination(null);
+    setAskingWhere(false);
   };
 
   return (
@@ -137,27 +179,88 @@ export function QrScannerScreen() {
                 </div>
               )}
 
-              <div className="mt-3.5 border-t border-line pt-2.5">
-                <div className="mb-1 flex items-baseline justify-between">
-                  <span className="text-[12.5px] font-bold text-ink">Next departures</span>
-                  <span className="text-[11px] text-ink-4">
-                    {routesServingStop(stop.id).length} routes
-                  </span>
-                </div>
+              {/* The point of the whole screen: the plate answered "where am I",
+                  so the only question left is where they are trying to get to. */}
+              <div className="mt-3.5 border-t border-line pt-3">
+                {destination ? (
+                  <>
+                    {plan.status === 'error' ? (
+                      <StateBlock
+                        compact
+                        tone="warn"
+                        icon={<QrCode size={19} strokeWidth={2} />}
+                        title="Could not work that out"
+                        body="Something went wrong resolving the route to that destination."
+                        actions={
+                          <Button variant="secondary" size="sm" onClick={plan.reload}>
+                            Try again
+                          </Button>
+                        }
+                      />
+                    ) : plan.data ? (
+                      <BoardingGuide plan={plan.data} />
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="skeleton h-4 w-40 rounded" />
+                        <div className="skeleton h-16 rounded-field" />
+                      </div>
+                    )}
 
-                {departures.length > 0 ? (
-                  <div className="-mx-4 divide-y divide-line">
-                    {departures.map(({ live, prediction }) => (
-                      <BusRow key={live.bus.id} live={live} prediction={prediction} />
-                    ))}
-                  </div>
+                    <button
+                      onClick={() => setAskingWhere(true)}
+                      className="mt-2.5 flex w-full items-center justify-center gap-1 text-[12.5px] font-semibold text-brand-600"
+                    >
+                      <Navigation size={13} strokeWidth={2.4} />
+                      Change destination
+                    </button>
+                  </>
                 ) : (
-                  <StateBlock
-                    compact
-                    icon={<QrCode size={19} strokeWidth={2} />}
-                    title="No live buses right now"
-                    body="The stop was identified, but nothing is currently en route to it."
-                  />
+                  <>
+                    <button
+                      onClick={() => setAskingWhere(true)}
+                      className="flex w-full items-center gap-2.5 rounded-field border border-brand-200 bg-brand-50 px-3 py-3 text-left transition-colors hover:bg-brand-100"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-brand-600 text-white">
+                        <Navigation size={15} strokeWidth={2.4} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[13.5px] font-bold text-brand-800">
+                          Where do you want to go?
+                        </span>
+                        <span className="mt-0.5 block text-[11.5px] leading-snug text-brand-700/85">
+                          Name a town or a place and we'll tell you which bus to board and where to
+                          get off.
+                        </span>
+                      </span>
+                      <ChevronRight size={16} strokeWidth={2.4} className="shrink-0 text-brand-600" />
+                    </button>
+
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-baseline justify-between">
+                        <span className="text-[12.5px] font-bold text-ink">
+                          Or just the next departures
+                        </span>
+                        <span className="text-[11px] text-ink-4">
+                          {routesServingStop(stop.id).length} routes
+                        </span>
+                      </div>
+
+                      {departures.length > 0 ? (
+                        <div className="-mx-4 divide-y divide-line">
+                          {departures.map(({ live, prediction }) => (
+                            <BusRow key={live.bus.id} live={live} prediction={prediction} />
+                          ))}
+                        </div>
+                      ) : (
+                        <StateBlock
+                          compact
+                          icon={<QrCode size={19} strokeWidth={2} />}
+                          title="No live buses right now"
+                          body="The stop was identified, but nothing is currently en route to it."
+                        />
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -183,7 +286,7 @@ export function QrScannerScreen() {
                 tone="warn"
                 icon={<QrCode size={20} strokeWidth={2} />}
                 title="Code not recognised"
-                body="That is not a HimGati stop plate, or the code is damaged. Every plate also has its stop id printed underneath — you can type that instead."
+                body="That is not a Routify stop plate, or the code is damaged. Every plate also has its stop id printed underneath — you can type that instead."
                 actions={
                   <>
                     <Button block onClick={() => setManual(true)}>
@@ -202,6 +305,20 @@ export function QrScannerScreen() {
           <DemoPlates onPick={scan} busy={phase === 'resolving'} />
         )}
       </div>
+
+      {/* ------------------------- destination picker ------------------------ */}
+      {stop && (
+        <DestinationSheet
+          open={askingWhere}
+          fromStopId={stop.id}
+          fromStopName={stop.name}
+          onClose={() => setAskingWhere(false)}
+          onPick={(d) => {
+            setDestination(d);
+            setAskingWhere(false);
+          }}
+        />
+      )}
 
       {/* --------------------------- manual entry ---------------------------- */}
       <Sheet
@@ -265,7 +382,7 @@ function Viewfinder({ phase }: { phase: Phase }) {
 
           {/* sweeping scan line */}
           {phase === 'scanning' && (
-            <span className="absolute inset-x-4 top-0 h-[2px] animate-[himgati-scan_2.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-brand-300 to-transparent" />
+            <span className="absolute inset-x-4 top-0 h-[2px] animate-[routify-scan_2.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-brand-300 to-transparent" />
           )}
 
           {phase === 'resolving' && (
@@ -283,7 +400,7 @@ function Viewfinder({ phase }: { phase: Phase }) {
       </div>
 
       <style>{`
-        @keyframes himgati-scan {
+        @keyframes routify-scan {
           0%, 100% { transform: translateY(8px); opacity: 0; }
           12% { opacity: 1; }
           50% { transform: translateY(198px); opacity: 1; }

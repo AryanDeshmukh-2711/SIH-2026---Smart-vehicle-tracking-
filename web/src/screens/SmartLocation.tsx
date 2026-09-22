@@ -108,7 +108,7 @@ export function SmartLocationScreen() {
           <section>
             <SectionHeader
               title="How should we find you?"
-              hint="Each method states the accuracy it can honestly claim"
+              hint="Each one says how precise it can be"
             />
             <div className="grid grid-cols-2 gap-2.5">
               {METHODS.map(({ id, icon: Icon }) => (
@@ -182,7 +182,12 @@ export function SmartLocationScreen() {
         </Stack>
       </ScreenBody>
 
-      <GpsSheet open={active === 'gps'} onClose={() => setActive(null)} onResolve={apply} />
+      <GpsSheet
+        open={active === 'gps'}
+        onClose={() => setActive(null)}
+        onResolve={apply}
+        onSwitch={setActive}
+      />
       <StopPicker
         open={active === 'stop-search'}
         title="Which stop are you at?"
@@ -206,7 +211,7 @@ export function SmartLocationScreen() {
 const GPS_FAILURE_COPY: Record<GpsFailure, { title: string; body: string }> = {
   denied: {
     title: 'Location permission is off',
-    body: 'HimGati cannot read your position. You can turn it on in your browser settings, or simply use one of the other five methods — they work just as well.',
+    body: 'Routify cannot read your position. You can turn it on in your browser settings, or simply use one of the other five methods — they work just as well.',
   },
   unavailable: {
     title: 'No satellite fix',
@@ -226,21 +231,31 @@ function GpsSheet({
   open,
   onClose,
   onResolve,
+  onSwitch,
 }: {
   open: boolean;
   onClose: () => void;
   onResolve: (l: ResolvedLocation) => void;
+  /** Hand the user to another method — the whole point of the failure state. */
+  onSwitch: (method: LocationMethod) => void;
 }) {
   const [state, setState] = useState<'idle' | 'busy' | 'failed'>('idle');
   const [failure, setFailure] = useState<GpsFailure>('unavailable');
 
+  // A satellite fix can take the full 8-second timeout. If the sheet is closed
+  // in the meantime the result must be dropped — otherwise a fix the user walked
+  // away from still overwrites their location, minutes later and without warning.
   useEffect(() => {
     if (!open) {
       setState('idle');
       return;
     }
+
+    let current = true;
     setState('busy');
+
     resolveByGps().then((r) => {
+      if (!current) return;
       if (r.ok && r.location) {
         onResolve(r.location);
       } else {
@@ -248,6 +263,10 @@ function GpsSheet({
         setState('failed');
       }
     });
+
+    return () => {
+      current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -271,15 +290,15 @@ function GpsSheet({
             tone="warn"
           />
           <div className="space-y-2 pb-2">
-            <Button variant="secondary" block onClick={onClose}>
+            <Button variant="secondary" block onClick={() => onSwitch('stop-search')}>
               <Search size={15} strokeWidth={2.3} />
               Search a bus stop instead
             </Button>
-            <Button variant="secondary" block onClick={onClose}>
+            <Button variant="secondary" block onClick={() => onSwitch('landmark')}>
               <Landmark size={15} strokeWidth={2.3} />
               Enter a landmark
             </Button>
-            <Button variant="secondary" block onClick={onClose}>
+            <Button variant="secondary" block onClick={() => onSwitch('map-pin')}>
               <MapPin size={15} strokeWidth={2.3} />
               Select on the map
             </Button>
@@ -453,13 +472,19 @@ function RouteNumberSheet({ open, onClose }: { open: boolean; onClose: () => voi
       setSearched(false);
       return;
     }
+    let current = true;
     const t = setTimeout(() => {
       findVehicle(q).then((r) => {
+        if (!current) return;
         setResults(r);
         setSearched(true);
       });
     }, 220);
-    return () => clearTimeout(t);
+
+    return () => {
+      current = false;
+      clearTimeout(t);
+    };
   }, [q]);
 
   return (

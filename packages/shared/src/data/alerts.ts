@@ -30,7 +30,7 @@ export const ALERTS: ServiceAlert[] = [
     affectedRouteIds: ['R-07L'],
     affectedStopIds: ['HP-SML-002'],
     issuedAt: ago(3),
-    source: 'HimGati arrival alert',
+    source: 'Routify arrival alert',
     read: false,
   },
   {

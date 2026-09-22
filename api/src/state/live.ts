@@ -10,6 +10,7 @@
 import type { Occupancy, StopPrediction, TripStatus } from '@himgati/shared';
 import { SIGNAL_LOST_AFTER_SEC } from '@himgati/shared';
 import { keys, LIVE_TTL_SEC, redis } from '../db/redis.ts';
+import { mergeOps, type OpsSource, type VehicleOps } from './ops.ts';
 
 export interface LiveVehicle {
   busId: string;
@@ -57,26 +58,17 @@ export async function setLive(v: LiveVehicle): Promise<void> {
 
 /* --------------------------- operator-owned state ------------------------- */
 
-export interface VehicleOps {
-  delayMin?: number;
-  occupancy?: Occupancy;
-  cancelled?: boolean;
-  /**
-   * Minutes until this service pulls out of the origin bay, as declared by the
-   * operator. Beats inferring it from the timetable: the depot knows which
-   * vehicle is on which run, and the timetable only knows when *a* bus is due.
-   */
-  departsInMin?: number;
-}
+export { OCCUPANCY_DRIVER_TTL_SEC, mergeOps } from './ops.ts';
+export type { OpsSource, VehicleOps } from './ops.ts';
 
-export async function setOps(busId: string, ops: VehicleOps): Promise<void> {
-  const existing = await getOps(busId);
-  await redis.set(
-    keys.busOps(busId),
-    JSON.stringify({ ...existing, ...ops }),
-    'EX',
-    LIVE_TTL_SEC,
-  );
+export async function setOps(
+  busId: string,
+  ops: VehicleOps,
+  source: OpsSource = 'device',
+  now = Date.now(),
+): Promise<void> {
+  const next = mergeOps(await getOps(busId), ops, source, now);
+  await redis.set(keys.busOps(busId), JSON.stringify(next), 'EX', LIVE_TTL_SEC);
 }
 
 export async function getOps(busId: string): Promise<VehicleOps> {

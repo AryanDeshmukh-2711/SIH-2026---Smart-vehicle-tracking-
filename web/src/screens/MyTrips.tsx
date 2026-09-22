@@ -218,7 +218,7 @@ export function MyTripsScreen() {
               <StateBlock
                 icon={<Bus size={24} strokeWidth={1.9} />}
                 title="No journeys yet"
-                body="Once you travel with HimGati, your trips, fares and carbon savings appear here."
+                body="Once you travel with Routify, your trips, fares and carbon savings appear here."
               />
             )}
           </Stack>

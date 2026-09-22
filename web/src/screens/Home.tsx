@@ -8,14 +8,13 @@ import {
   Leaf,
   MapPin,
   Navigation,
-  Route as RouteIcon,
   ScanLine,
   Signal,
 } from 'lucide-react';
 import { Screen, ScreenBody, Stack } from '@/components/layout/Screen';
 import { Logo } from '@/components/layout/AppShell';
 import { SearchField } from '@/components/ui/Field';
-import { Card, CardLink, SectionHeader } from '@/components/ui/Card';
+import { Card, SectionHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { BusCard } from '@/components/transit/BusCard';
 import { AlertStrip } from '@/components/transit/AlertCard';
@@ -42,8 +41,17 @@ export function HomeScreen() {
   const { location, alerts, unreadAlerts } = useApp();
 
   const departures = useDepartures(location.stopId, 3);
-  const nearby = useAsync(() => getNearbyStops(location.position, 4), [location.position.lat]);
-  const places = useAsync(() => getPlaces('popular', location.position), [location.position.lat]);
+  // Both coordinates: keying on latitude alone leaves nearby stops and places
+  // stale whenever the user moves along a parallel — which is exactly what
+  // travelling the Shimla–Narkanda corridor does.
+  const nearby = useAsync(
+    () => getNearbyStops(location.position, 4),
+    [location.position.lat, location.position.lng],
+  );
+  const places = useAsync(
+    () => getPlaces('popular', location.position),
+    [location.position.lat, location.position.lng],
+  );
 
   const activeAlert = alerts.find((a) => a.severity !== 'info' && !a.read);
   const month = summarise(tripsWithin(TRIPS, 30));
@@ -54,7 +62,7 @@ export function HomeScreen() {
       <div className="shrink-0 bg-surface px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-ink-3">{greeting()} 👋</p>
+            <p className="text-[13px] font-medium text-ink-3">{greeting()}</p>
             <h1 className="mt-0.5 font-display text-[23px] font-extrabold leading-tight tracking-[-0.025em] text-ink">
               Where are you going?
             </h1>
@@ -116,9 +124,12 @@ export function HomeScreen() {
 
           {/* live departures from wherever the user is */}
           <section>
+            {/* No hint when a stop is set: it repeated `location.label`, which is
+                already the chip directly above. The stop name appeared four times
+                on this screen. */}
             <SectionHeader
               title="Departing near you"
-              hint={location.stopId ? location.label : 'Pick a stop to see live arrivals'}
+              hint={location.stopId ? undefined : 'Pick a stop to see live arrivals'}
               action={location.stopId ? 'All departures' : undefined}
               actionTo={location.stopId ? `/stop/${location.stopId}` : undefined}
             />
@@ -126,12 +137,7 @@ export function HomeScreen() {
             {departures.length > 0 ? (
               <div className="space-y-2.5">
                 {departures.map(({ live, prediction }) => (
-                  <BusCard
-                    key={live.bus.id}
-                    live={live}
-                    prediction={prediction}
-                    stopName={location.label.replace(/,.*$/, '')}
-                  />
+                  <BusCard key={live.bus.id} live={live} prediction={prediction} />
                 ))}
               </div>
             ) : (
@@ -210,45 +216,6 @@ export function HomeScreen() {
             </div>
           </section>
 
-          {/* the differentiator, stated plainly */}
-          <CardLink to="/locate" className="border-brand-100 bg-brand-50">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-brand-600 text-white">
-                <Signal size={17} strokeWidth={2.3} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[14px] font-bold text-brand-800">GPS not working?</div>
-                <p className="mt-0.5 text-[12.5px] leading-relaxed text-brand-700/85">
-                  Find your bus by stop name, landmark, map pin, QR plate or route number. Six ways
-                  in — GPS is only one of them.
-                </p>
-              </div>
-              <ChevronRight size={16} className="mt-1 shrink-0 text-brand-600" />
-            </div>
-          </CardLink>
-
-          {/* your impact so far */}
-          <CardLink to="/impact">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-ok-bg text-ok">
-                <Leaf size={19} strokeWidth={2.2} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.055em] text-ink-4">
-                  Last 30 days
-                </div>
-                <div className="mt-0.5 font-display text-[15px] font-bold text-ink">
-                  {month.trips} bus trips ·{' '}
-                  <span className="text-ok">{kg(month.co2SavedKg)} CO₂ saved</span>
-                </div>
-                <div className="mt-0.5 text-[11.5px] text-ink-4">
-                  Estimated against driving alone in a petrol car
-                </div>
-              </div>
-              <ChevronRight size={16} className="shrink-0 text-ink-4" />
-            </div>
-          </CardLink>
-
           {/* tourism, kept below transit */}
           <section>
             <SectionHeader
@@ -261,7 +228,7 @@ export function HomeScreen() {
               {(places.data ?? []).slice(0, 6).map((p) => (
                 <Link key={p.id} to={`/place/${p.id}`} className="w-[176px] shrink-0">
                   <div className="card overflow-hidden p-0 transition-shadow hover:shadow-sm">
-                    <PlaceCover seed={p.photoSeed} category={p.category} className="h-[96px]" />
+                    <PlaceCover seed={p.photoSeed} category={p.category} placeId={p.id} alt={p.name} className="h-[96px]" />
                     <div className="p-2.5">
                       <div className="truncate text-[13px] font-bold text-ink">{p.name}</div>
                       <div className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-3">
@@ -275,26 +242,38 @@ export function HomeScreen() {
             </div>
           </section>
 
-          {/* itinerary entry point */}
-          <CardLink to="/itinerary" className="border-line">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-surface-3 text-ink-2">
-                <Compass size={19} strokeWidth={2.1} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[14px] font-bold text-ink">Build a day plan</div>
-                <p className="mt-0.5 text-[12.5px] text-ink-3">
-                  Tell us what you like and how long you have. We'll route it by bus.
-                </p>
-              </div>
-              <ChevronRight size={16} className="shrink-0 text-ink-4" />
-            </div>
-          </CardLink>
-
-          <FooterNote />
+          {/*
+            Three full-width pitch cards used to sit here — "GPS not working?",
+            the CO₂ tally and "Build a day plan" — each with a heading, a
+            paragraph and a chevron, all below the fold and none of them
+            answering "where is my bus?". They are the same three destinations,
+            now as one row of quiet links.
+          */}
+          <div className="grid grid-cols-3 gap-2">
+            <MoreLink to="/locate" icon={<Signal size={16} strokeWidth={2.2} />} label="Six ways to locate" />
+            <MoreLink
+              to="/impact"
+              icon={<Leaf size={16} strokeWidth={2.2} />}
+              label={`${kg(month.co2SavedKg)} saved`}
+            />
+            <MoreLink to="/itinerary" icon={<Compass size={16} strokeWidth={2.2} />} label="Build a day plan" />
+          </div>
         </Stack>
       </ScreenBody>
     </Screen>
+  );
+}
+
+/** Quiet tertiary destination — a row of these replaces three pitch cards. */
+function MoreLink({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
+  return (
+    <Link
+      to={to}
+      className="flex flex-col items-center gap-1.5 rounded-field border border-line bg-surface px-2 py-3 text-center transition-colors hover:bg-surface-2"
+    >
+      <span className="text-brand-600">{icon}</span>
+      <span className="text-[11px] font-semibold leading-tight text-ink-2">{label}</span>
+    </Link>
   );
 }
 
@@ -327,14 +306,3 @@ function QuickAction({
   );
 }
 
-function FooterNote() {
-  return (
-    <div className="flex items-start gap-2 pt-1 text-[11px] leading-relaxed text-ink-4">
-      <RouteIcon size={12} strokeWidth={2.2} className="mt-px shrink-0" />
-      <span>
-        Live positions are simulated for this build. Arrival times always carry a confidence mark;
-        an ETA without one is never shown.
-      </span>
-    </div>
-  );
-}

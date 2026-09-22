@@ -2,7 +2,7 @@
  * GTFS / GTFS-Realtime field mapping.
  *
  * Nothing in the app imports this at runtime today — it exists so the path from
- * a real feed to HimGati's domain types is written down and type-checked rather
+ * a real feed to Routify's domain types is written down and type-checked rather
  * than left as an intention. When the transport department publishes a feed,
  * these functions are the only new code required.
  */
@@ -111,7 +111,7 @@ function statusFrom(scheduleRelationship: string | undefined, ageSec: number, de
 }
 
 /**
- * Fold a VehiclePosition and its TripUpdate into HimGati's `VehiclePosition`.
+ * Fold a VehiclePosition and its TripUpdate into Routify's `VehiclePosition`.
  *
  * Predictions are left empty here: this app derives them from feed age via
  * `predictionsFromStopTimeUpdates` below, because a raw TripUpdate carries no

@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, MessageSquare, Star, ThumbsUp } from 'lucide-react';
-import type { RatingBreakdown } from '@/types';
+import { CheckCircle2, MessageSquare, Pencil, Star, ThumbsUp, Trash2 } from 'lucide-react';
+import type { BusReview, RatingBreakdown } from '@/types';
 import { Screen, ScreenBody, ScreenHeader, Stack } from '@/components/layout/Screen';
 import { Card, SectionHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
 import { ScoreBar, Stars } from '@/components/ui/Meters';
-import { StateBlock, Notice } from '@/components/ui/States';
+import { StateBlock } from '@/components/ui/States';
 import { Segmented } from '@/components/ui/Field';
 import { useLiveBus } from '@/hooks/useLive';
-import { RATING_DIMENSIONS, reviewsForBus, summariseReviews } from '@/data/reviews';
+import { useApp } from '@/store/AppState';
+import { RATING_DIMENSIONS, reviewsForBusWith, summariseReviews } from '@/data/reviews';
 import { TRIPS } from '@/data/trips';
 import { dayLabel } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -28,10 +29,20 @@ type Sort = 'recent' | 'highest' | 'lowest';
 export function BusReviewsScreen() {
   const { busId } = useParams<{ busId: string }>();
   const live = useLiveBus(busId);
+  const { userReviews, reviewedTripIds, deleteReview, myReviewFor } = useApp();
   const [sort, setSort] = useState<Sort>('recent');
   const [composing, setComposing] = useState(false);
 
-  const reviews = useMemo(() => (busId ? reviewsForBus(busId) : []), [busId]);
+  /** The user's own review of this vehicle, if they have written one. */
+  const mine = busId ? myReviewFor(busId) : undefined;
+
+  // Seeded reviews plus anything the user has submitted this session, so a
+  // review just written is visible here immediately rather than only existing
+  // in a "Thanks" toast.
+  const reviews = useMemo(
+    () => (busId ? reviewsForBusWith(busId, userReviews) : []),
+    [busId, userReviews],
+  );
   const summary = useMemo(() => summariseReviews(reviews), [reviews]);
 
   const sorted = useMemo(() => {
@@ -41,10 +52,19 @@ export function BusReviewsScreen() {
     return list;
   }, [reviews, sort]);
 
-  /** A review can only be written against a journey the user actually took. */
+  /**
+   * The journey a new review is written against, when the user has one on this
+   * vehicle. `t.reviewed` is the trip's own seeded flag; `reviewedTripIds` covers
+   * ones reviewed live this session — a trip fixture never mutates itself, so
+   * relying on `t.reviewed` alone let the same journey be rated over and over.
+   *
+   * Its absence no longer blocks reviewing. Requiring a matching trip fixture
+   * meant most vehicles could never be rated at all, which read as the feature
+   * being broken; the trip is now context for the review, not a gate on it.
+   */
   const eligibleTrip = useMemo(
-    () => TRIPS.find((t) => t.busId === busId && !t.reviewed),
-    [busId],
+    () => TRIPS.find((t) => t.busId === busId && !t.reviewed && !reviewedTripIds.includes(t.id)),
+    [busId, reviewedTripIds],
   );
 
   return (
@@ -56,12 +76,20 @@ export function BusReviewsScreen() {
 
       <ScreenBody className="pt-4">
         {summary.count === 0 ? (
-          <StateBlock
-            icon={<MessageSquare size={24} strokeWidth={1.9} />}
-            title="No reviews for this bus yet"
-            body="Reviews are only accepted from passengers who have completed a journey on this vehicle, so a new bus starts empty."
-            tone="brand"
-          />
+          <Stack>
+            <StateBlock
+              icon={<MessageSquare size={24} strokeWidth={1.9} />}
+              title="No reviews for this bus yet"
+              body="Be the first to rate it. Ratings cover cleanliness, comfort, punctuality and safety."
+              tone="brand"
+              actions={
+                <Button onClick={() => setComposing(true)}>
+                  <Star size={15} strokeWidth={2.3} />
+                  Write a review
+                </Button>
+              }
+            />
+          </Stack>
         ) : (
           <Stack>
             {/* -------------------------- aggregate -------------------------- */}
@@ -184,54 +212,89 @@ export function BusReviewsScreen() {
               </div>
             </section>
 
-            {/* ------------------------- write a review ---------------------- */}
-            {eligibleTrip ? (
+            {/* --------------------- write / edit / delete ------------------- */}
+            {mine ? (
+              <Card className="border-brand-200 bg-brand-50">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 size={16} strokeWidth={2.3} className="mt-px shrink-0 text-brand-600" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13.5px] font-bold text-brand-800">Your review is live</div>
+                    <p className="mt-0.5 text-[12.5px] leading-relaxed text-brand-700/85">
+                      You rated this bus {mine.overall.toFixed(1)} out of 5. You can change it or take
+                      it down at any time.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button variant="secondary" onClick={() => setComposing(true)}>
+                    <Pencil size={14} strokeWidth={2.3} />
+                    Edit
+                  </Button>
+                  <Button variant="secondary" onClick={() => deleteReview(mine.id)}>
+                    <Trash2 size={14} strokeWidth={2.3} />
+                    Delete
+                  </Button>
+                </div>
+              </Card>
+            ) : (
               <Card className="border-brand-200 bg-brand-50">
                 <div className="text-[13.5px] font-bold text-brand-800">
-                  You travelled on this bus
+                  {eligibleTrip ? 'You travelled on this bus' : 'Rate this bus'}
                 </div>
                 <p className="mt-1 text-[12.5px] leading-relaxed text-brand-700/85">
-                  {eligibleTrip.from.replace(/,.*$/, '')} → {eligibleTrip.to.replace(/,.*$/, '')} ·{' '}
-                  {dayLabel(eligibleTrip.date)}. Rate it so other passengers know what to expect.
+                  {eligibleTrip
+                    ? `${eligibleTrip.from.replace(/,.*$/, '')} → ${eligibleTrip.to.replace(/,.*$/, '')} · ${dayLabel(eligibleTrip.date)}. Rate it so other passengers know what to expect.`
+                    : 'Tell other passengers what it was like — cleanliness, comfort, punctuality and safety.'}
                 </p>
                 <Button block className="mt-3" onClick={() => setComposing(true)}>
+                  <Star size={15} strokeWidth={2.3} />
                   Write a review
                 </Button>
               </Card>
-            ) : (
-              <Notice tone="neutral">
-                Only passengers with a completed journey on this vehicle can leave a review. That is
-                what keeps these scores usable by depot managers.
-              </Notice>
             )}
           </Stack>
         )}
       </ScreenBody>
 
-      <ReviewComposer
-        open={composing}
-        onClose={() => setComposing(false)}
-        journey={
-          eligibleTrip
-            ? `${eligibleTrip.from.replace(/,.*$/, '')} → ${eligibleTrip.to.replace(/,.*$/, '')} · ${dayLabel(eligibleTrip.date)}`
-            : ''
-        }
-      />
+      {busId && (
+        <ReviewComposer
+          open={composing}
+          onClose={() => setComposing(false)}
+          busId={busId}
+          tripId={eligibleTrip?.id}
+          journey={
+            eligibleTrip
+              ? `${eligibleTrip.from.replace(/,.*$/, '')} → ${eligibleTrip.to.replace(/,.*$/, '')} · ${dayLabel(eligibleTrip.date)}`
+              : live
+                ? `Route ${live.route.shortName} · ${live.route.longName}`
+                : 'This vehicle'
+          }
+          existing={mine}
+        />
+      )}
     </Screen>
   );
 }
 
 /* ----------------------------- review composer ---------------------------- */
 
-function ReviewComposer({
+export function ReviewComposer({
   open,
   onClose,
+  busId,
+  tripId,
   journey,
+  existing,
 }: {
   open: boolean;
   onClose: () => void;
+  busId: string;
+  tripId?: string;
   journey: string;
+  /** When present the sheet edits this review instead of writing a new one. */
+  existing?: BusReview;
 }) {
+  const { submitReview } = useApp();
   const [scores, setScores] = useState<RatingBreakdown>({
     cleanliness: 0,
     comfort: 0,
@@ -243,18 +306,35 @@ function ReviewComposer({
 
   const complete = Object.values(scores).every((v) => v > 0);
 
+  // Reset when the sheet reopens rather than on a bare timeout after close: the
+  // old 300 ms timer could outlive the component and fired regardless. Editing
+  // opens on the existing scores so the user corrects rather than re-enters.
+  useEffect(() => {
+    if (open) {
+      setSubmitted(false);
+      setScores(existing?.breakdown ?? { cleanliness: 0, comfort: 0, punctuality: 0, safety: 0 });
+      setComment(existing?.comment ?? '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Submitting used to only flip a local flag, so the confirmation was the entire
+  // feature — the review never reached the vehicle it was written about.
+  const submit = () => {
+    if (!complete) return;
+    submitReview({ busId, tripId, journey, breakdown: scores, comment });
+    setSubmitted(true);
+  };
+
   return (
     <Sheet
       open={open}
-      onClose={() => {
-        onClose();
-        setTimeout(() => setSubmitted(false), 300);
-      }}
-      title={submitted ? 'Thanks — review recorded' : 'Rate this journey'}
+      onClose={onClose}
+      title={submitted ? 'Thanks — review recorded' : existing ? 'Edit your review' : 'Rate this journey'}
       subtitle={submitted ? undefined : journey}
       footer={
         submitted ? undefined : (
-          <Button block size="lg" disabled={!complete} onClick={() => setSubmitted(true)}>
+          <Button block size="lg" disabled={!complete} onClick={submit}>
             Submit review
           </Button>
         )

@@ -5,26 +5,18 @@ import { request } from './client';
 /* -------------------------------- alerts ---------------------------------- */
 
 /**
- * Service alerts, from the API when it is reachable.
+ * Live service alerts.
  *
- * Falls back to the bundled catalogue rather than showing nothing: a passenger
- * who cannot reach the server still needs to know about the landslide, and the
- * alerts are seeded from this same list anyway.
+ * Read from the API, because alerts are the one part of the network picture a
+ * depot changes while people are looking at it — a landslide closure published
+ * from the admin console has to reach a traveller's phone, not wait for the next
+ * app release. The bundled list is the fallback when the server is unreachable.
  */
-export async function getAlerts(): Promise<ServiceAlert[]> {
-  const byNewest = (list: ServiceAlert[]) =>
-    list.slice().sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime());
-
-  try {
-    const res = await fetch('/api/v1/alerts');
-    if (!res.ok) throw new Error(String(res.status));
-    const body = (await res.json()) as { data: ServiceAlert[] | null };
-    if (body.data?.length) return byNewest(body.data);
-  } catch {
-    // fall through to the bundled copy
-  }
-
-  return request('/v1/alerts', () => byNewest(ALERTS), { cacheable: true });
+export function getAlerts(): Promise<ServiceAlert[]> {
+  return request('/v1/alerts', () =>
+    ALERTS.slice().sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime()),
+    { cacheable: true, remote: true },
+  );
 }
 
 export function alertsForRoute(alerts: ServiceAlert[], routeId: string): ServiceAlert[] {

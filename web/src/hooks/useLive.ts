@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { LiveBus, StopPrediction } from '@/types';
+import { departuresAtStop } from '@/services/simulation/simulator';
 import { liveStore, type LiveSource } from '@/services/live/liveStore';
-import { departuresAt } from '@/services/live/queries';
 
 /**
  * Live fleet subscription.
  *
- * Backed by the API's Socket.IO feed, which falls back to the bundled simulator
- * when the backend is unreachable. Screens never learn which one they are
- * reading — the store presents one interface either way.
+ * Backed by the API's Socket.IO feed, falling back to the bundled simulator when
+ * the backend is unreachable. Screens never learn which one they are reading —
+ * the store presents one interface either way.
  */
 export function useLiveFleet(): LiveBus[] {
   return useSyncExternalStore(liveStore.subscribe, liveStore.getSnapshot, liveStore.getSnapshot);
@@ -27,16 +27,19 @@ export function useLiveBus(busId: string | undefined): LiveBus | undefined {
 /**
  * Live arrivals for a stop, recomputed on every fleet tick.
  *
- * Subscribing first is what makes this reactive; the board itself is built by
- * the same `departuresAt` the services use, so a stop screen and the journey
- * planner cannot quote different times for the same bus.
+ * Delegates to `departuresAtStop` rather than reimplementing the filter, so the
+ * hook, the SMS reply and the REST-shaped `getDepartures` can never disagree
+ * about which vehicles belong on a board.
  */
 export function useDepartures(
   stopId: string | undefined,
   limit = 8,
 ): Array<{ live: LiveBus; prediction: StopPrediction }> {
-  useLiveFleet();
-  return stopId ? departuresAt(stopId, limit) : [];
+  const fleet = useLiveFleet();
+  return useMemo(
+    () => (stopId ? departuresAtStop(stopId, fleet).slice(0, limit) : []),
+    [fleet, stopId, limit],
+  );
 }
 
 /* ------------------------------ async helper ------------------------------ */

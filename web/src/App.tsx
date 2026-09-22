@@ -16,6 +16,7 @@ import { ExploreScreen } from '@/screens/Explore';
 import { PlaceDetailScreen } from '@/screens/PlaceDetail';
 import { SmartItineraryScreen } from '@/screens/SmartItinerary';
 import { MyTripsScreen } from '@/screens/MyTrips';
+import { SavedScreen } from '@/screens/Saved';
 import { SustainabilityScreen } from '@/screens/Sustainability';
 import { NotificationsScreen } from '@/screens/Notifications';
 import { ProfileScreen } from '@/screens/Profile';
@@ -48,6 +49,7 @@ export function App() {
             <Route path="/itinerary" element={<SmartItineraryScreen />} />
 
             <Route path="/trips" element={<MyTripsScreen />} />
+            <Route path="/saved" element={<SavedScreen />} />
             <Route path="/impact" element={<SustainabilityScreen />} />
             <Route path="/alerts" element={<NotificationsScreen />} />
             <Route path="/profile" element={<ProfileScreen />} />

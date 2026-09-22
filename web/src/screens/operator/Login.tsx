@@ -76,7 +76,7 @@ export function OperatorLoginScreen() {
         <Stack>
           <div className="flex flex-col items-center pb-2 text-center">
             <Logo size={44} />
-            <h1 className="mt-3 font-display text-[20px] font-extrabold text-ink">HimGati Operations</h1>
+            <h1 className="mt-3 font-display text-[20px] font-extrabold text-ink">Routify Operations</h1>
             <p className="mt-1 max-w-[280px] text-[12.5px] leading-relaxed text-ink-3">
               For drivers, depot staff and the transport authority. Passengers do not need an
               account.

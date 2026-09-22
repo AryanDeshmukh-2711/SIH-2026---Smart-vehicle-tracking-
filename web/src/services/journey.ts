@@ -45,14 +45,27 @@ function pickVehicle(routeId: string) {
   return candidates.slice().sort((a, b) => greenScore(b) - greenScore(a))[0];
 }
 
+/**
+ * How long a live ETA remains usable as a boarding time, in minutes.
+ *
+ * A live ETA is measured from *now*. It says nothing about boarding at some later
+ * moment — for the second leg of a transfer, hours downstream, the vehicle that
+ * is five minutes away right now will be long gone. Beyond this window the
+ * published timetable is the only honest source.
+ */
+const LIVE_BOARDING_WINDOW_MIN = 5;
+
 /** Next departure from `route` at `stopIdx`, live if a bus is en route. */
 function nextDeparture(route: Route, stopIdx: number, after: Date): Date {
   const stopId = route.stopIds[stopIdx];
+  const leadMin = (after.getTime() - Date.now()) / 60_000;
 
-  // The same live feed the map reads, so a quoted departure cannot contradict
-  // the bus the user can see moving on screen.
-  const live = nextArrivalOnRoute(route.id, stopId);
-  if (live) return addMinutes(after, Math.max(1, live.etaMin));
+  if (leadMin <= LIVE_BOARDING_WINDOW_MIN) {
+    // The same live feed the map reads, so a quoted departure cannot contradict
+    // the bus the user can see moving on screen.
+    const live = nextArrivalOnRoute(route.id, stopId);
+    if (live) return addMinutes(after, Math.max(1, live.etaMin));
+  }
 
   const totalKm = routeDistanceKm(route);
   const offsetMin = (route.distancesKm[stopIdx] / totalKm) * route.typicalDurationMin;
@@ -154,18 +167,17 @@ function applyBadges(options: JourneyOption[]): JourneyOption[] {
   const cheapest = min((o) => o.fareInr);
   const fewest = min((o) => o.transfers);
   const greenest = max((o) => o.greenScore);
+  const transfersVary = options.some((x) => x.transfers > fewest);
 
-  for (const o of options) {
-    o.badges = [];
-    if (o.durationMin === fastest) o.badges.push('fastest');
-    if (o.fareInr === cheapest) o.badges.push('cheapest');
-    if (o.transfers === fewest && options.some((x) => x.transfers > fewest)) {
-      o.badges.push('fewest-transfers');
-    }
-    if (o.greenScore === greenest) o.badges.push('most-sustainable');
-  }
-
-  return options;
+  return options.map((o) => {
+    const badges: JourneyPreference[] = [];
+    if (o.durationMin === fastest) badges.push('fastest');
+    if (o.fareInr === cheapest) badges.push('cheapest');
+    // Only a distinction worth making when the options actually differ.
+    if (o.transfers === fewest && transfersVary) badges.push('fewest-transfers');
+    if (o.greenScore === greenest) badges.push('most-sustainable');
+    return { ...o, badges };
+  });
 }
 
 const SORTERS: Record<JourneyPreference, (a: JourneyOption, b: JourneyOption) => number> = {
@@ -232,6 +244,29 @@ export function planJourney(req: PlanRequest): Promise<JourneyOption[]> {
 
     return applyBadges(options).sort(SORTERS[req.preference]).slice(0, 5);
   });
+}
+
+/**
+ * Detects a journey that fails only because of direction.
+ *
+ * Every corridor in `data/routes.ts` is modelled in one direction only — there are
+ * no return services in the dataset. So Manali → Shimla finds nothing even though
+ * both stops sit on route 42B, and the planner's empty result was being reported
+ * as "no bus route connects these stops": an assertion about the real network that
+ * the app is in no position to make.
+ *
+ * Returns the corridor that *does* link the two stops, in the direction it is
+ * modelled, so the screen can say what is actually true. Adding reverse routes to
+ * the dataset (and vehicles to work them) is the real fix; this stops the app
+ * lying in the meantime.
+ */
+export function reverseOnlyCorridor(fromStopId: string, toStopId: string): Route | null {
+  for (const route of ROUTES) {
+    const fromIdx = route.stopIds.indexOf(fromStopId);
+    const toIdx = route.stopIds.indexOf(toStopId);
+    if (fromIdx >= 0 && toIdx >= 0 && toIdx < fromIdx) return route;
+  }
+  return null;
 }
 
 /** Walking leg from the user's actual position to the boarding stop. */

@@ -199,3 +199,22 @@ export function summariseReviews(reviews: BusReview[]): ReviewSummary {
 export function reviewsForBus(busId: string): BusReview[] {
   return REVIEWS.filter((r) => r.busId === busId).sort((a, b) => b.date.localeCompare(a.date));
 }
+
+/**
+ * Reviews for a bus, including any the user has written this session.
+ *
+ * The seeded set lives in this module; anything the passenger submits lives in
+ * app state. Both have to appear on the same list or a review the user just wrote
+ * is invisible to them, which is the fastest way to make the feature feel broken.
+ */
+export function reviewsForBusWith(busId: string, submitted: BusReview[]): BusReview[] {
+  return [...submitted, ...REVIEWS]
+    .filter((r) => r.busId === busId)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** Overall score is the mean of the four dimensions — no separate overall input. */
+export function overallFrom(breakdown: RatingBreakdown): number {
+  const values = Object.values(breakdown);
+  return Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10;
+}

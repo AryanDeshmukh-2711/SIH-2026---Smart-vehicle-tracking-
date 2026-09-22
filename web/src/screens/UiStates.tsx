@@ -154,7 +154,7 @@ export function UiStatesScreen() {
               tone="warn"
               icon={<ShieldOff size={22} strokeWidth={2} />}
               title="Location permission denied"
-              body="HimGati cannot read your position. Everything still works — pick your stop directly and nothing is lost."
+              body="Routify cannot read your position. Everything still works — pick your stop directly and nothing is lost."
               actions={
                 <Button size="sm" variant="secondary">
                   Choose my stop instead

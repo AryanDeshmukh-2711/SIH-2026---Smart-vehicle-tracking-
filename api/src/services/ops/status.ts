@@ -37,7 +37,15 @@ export type StatusReport = z.infer<typeof statusSchema>;
 
 export const statusStats = { received: 0, applied: 0, rejected: 0 };
 
-export async function ingestStatus(raw: unknown): Promise<void> {
+/**
+ * @param source Who is reporting. `'driver'` is a person on the bus tapping the
+ *   driver app; `'device'` is the MQTT channel — vehicle telemetry and depot
+ *   systems. It only affects crowd level, where a human beats an estimate.
+ */
+export async function ingestStatus(
+  raw: unknown,
+  source: 'driver' | 'device' = 'device',
+): Promise<void> {
   statusStats.received++;
 
   const parsed = statusSchema.safeParse(raw);
@@ -93,14 +101,18 @@ export async function ingestStatus(raw: unknown): Promise<void> {
 
   // Written to its own key, never merged into the position record — the GPS
   // handler may be mid-flight with a copy of that record right now.
-  await setOps(bus.id, {
-    delayMin: report.delayMin,
-    occupancy: report.occupancy as Occupancy | undefined,
-    cancelled: report.cancelled,
-    // Explicitly cleared once the vehicle is moving, so a stale bay time cannot
-    // linger on a service that has already left.
-    departsInMin: report.departsInMin ?? undefined,
-  });
+  await setOps(
+    bus.id,
+    {
+      delayMin: report.delayMin,
+      occupancy: report.occupancy as Occupancy | undefined,
+      cancelled: report.cancelled,
+      // Explicitly cleared once the vehicle is moving, so a stale bay time cannot
+      // linger on a service that has already left.
+      departsInMin: report.departsInMin ?? undefined,
+    },
+    source,
+  );
 
   statusStats.applied++;
 

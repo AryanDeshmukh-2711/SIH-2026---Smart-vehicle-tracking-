@@ -55,10 +55,12 @@ export function ButtonLink({
   block,
   className,
   children,
-}: CommonProps & { to: string }) {
+  state,
+}: CommonProps & { to: string; state?: unknown }) {
   return (
     <Link
       to={to}
+      state={state}
       className={cn(BASE, VARIANT[variant], SIZE[size], block && 'w-full', className)}
     >
       {children}
