@@ -1,9 +1,9 @@
 {
-  "name": "@himgati/shared",
+  "name": "@routify/shared",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Pure domain logic shared by the HimGati web client and API",
+  "description": "Pure domain logic shared by the Routify web client and API",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

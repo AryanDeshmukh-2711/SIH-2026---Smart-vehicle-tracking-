@@ -6,7 +6,7 @@
  * plain function that can be reasoned about and tested on its own.
  */
 
-import type { Occupancy } from '@himgati/shared';
+import type { Occupancy } from '@routify/shared';
 
 export interface VehicleOps {
   delayMin?: number;

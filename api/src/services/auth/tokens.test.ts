@@ -25,8 +25,8 @@ describe('signing and verifying', () => {
   it('sets issuer, audience and an expiry', async () => {
     const claims = await verifyAccessToken(await signAccessToken(driver));
 
-    expect(claims?.iss).toBe('himgati');
-    expect(claims?.aud).toBe('himgati-api');
+    expect(claims?.iss).toBe('routify');
+    expect(claims?.aud).toBe('routify-api');
     expect(claims?.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
   });
 
@@ -65,7 +65,7 @@ describe('rejecting bad tokens', () => {
   it('rejects the "none" algorithm', async () => {
     const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
     const payload = Buffer.from(
-      JSON.stringify({ sub: 'usr_x', role: 'admin', iss: 'himgati', aud: 'himgati-api' }),
+      JSON.stringify({ sub: 'usr_x', role: 'admin', iss: 'routify', aud: 'routify-api' }),
     ).toString('base64url');
 
     expect(await verifyAccessToken(`${header}.${payload}.`)).toBeNull();

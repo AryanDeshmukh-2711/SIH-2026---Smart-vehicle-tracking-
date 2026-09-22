@@ -1,4 +1,4 @@
-// HimGati data model.
+// Routify data model.
 //
 // Prisma owns the relational tables; PostGIS owns the geometry. Geometry columns
 // are declared as `Unsupported` because Prisma has no native geometry type — they

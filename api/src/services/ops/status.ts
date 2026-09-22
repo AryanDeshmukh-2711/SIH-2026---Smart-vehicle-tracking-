@@ -8,10 +8,10 @@
  * "breakdown" (FR-37). Mixing them into the position payload would mean
  * inventing telemetry that AIS-140 hardware does not produce.
  *
- * Topic: `him_gati/bus/{busId}/status`
+ * Topic: `routify/bus/{busId}/status`
  */
 
-import type { Occupancy } from '@himgati/shared';
+import type { Occupancy } from '@routify/shared';
 import { z } from 'zod';
 import { logger } from '../../config/logger.ts';
 import { prisma } from '../../db/prisma.ts';

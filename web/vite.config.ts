@@ -23,7 +23,7 @@ export default defineConfig({
             urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'himgati-basemap',
+              cacheName: 'routify-basemap',
               expiration: { maxEntries: 600, maxAgeSeconds: 60 * 60 * 24 * 30 },
               cacheableResponse: { statuses: [0, 200] },
             },
@@ -35,7 +35,7 @@ export default defineConfig({
             urlPattern: /\/api\/v1\/bundle$/,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'himgati-static-bundle',
+              cacheName: 'routify-static-bundle',
               expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 7 },
               cacheableResponse: { statuses: [0, 200] },
             },
@@ -63,12 +63,12 @@ export default defineConfig({
     // Array form so the longer shared subpaths are matched before the bare
     // package name and before the '@' app alias.
     alias: [
-      { find: '@himgati/shared/data', replacement: shared('data/index.ts') },
-      { find: '@himgati/shared/types', replacement: shared('types.ts') },
-      { find: '@himgati/shared/eta', replacement: shared('eta.ts') },
-      { find: '@himgati/shared/green', replacement: shared('green.ts') },
-      { find: '@himgati/shared/geo', replacement: shared('geo.ts') },
-      { find: '@himgati/shared', replacement: shared('index.ts') },
+      { find: '@routify/shared/data', replacement: shared('data/index.ts') },
+      { find: '@routify/shared/types', replacement: shared('types.ts') },
+      { find: '@routify/shared/eta', replacement: shared('eta.ts') },
+      { find: '@routify/shared/green', replacement: shared('green.ts') },
+      { find: '@routify/shared/geo', replacement: shared('geo.ts') },
+      { find: '@routify/shared', replacement: shared('index.ts') },
       { find: '@', replacement: path.resolve(root, 'src') },
     ],
   },

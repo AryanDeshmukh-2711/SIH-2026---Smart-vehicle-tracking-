@@ -8,7 +8,7 @@ import { env, isProduction } from './env.ts';
  */
 export const logger = pino({
   level: env.LOG_LEVEL,
-  base: { service: 'himgati-api' },
+  base: { service: 'routify-api' },
   transport: isProduction
     ? undefined
     : {

@@ -12,7 +12,7 @@
 <br/>
 ![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=nodedotjs&logoColor=white) ![PostGIS](https://img.shields.io/badge/PostgreSQL-PostGIS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-live_state-DC382D?style=for-the-badge&logo=redis&logoColor=white) ![MQTT](https://img.shields.io/badge/MQTT-GPS_feed-660066?style=for-the-badge&logo=mqtt&logoColor=white) ![Socket.IO](https://img.shields.io/badge/Socket.IO-realtime-010101?style=for-the-badge&logo=socketdotio&logoColor=white)
 
-![Tests](https://img.shields.io/badge/tests-80+_passing-2EA043) ![Routes](https://img.shields.io/badge/routes-8-10B981) ![Stops](https://img.shields.io/badge/stops-26-10B981) ![Buses](https://img.shields.io/badge/simulated_buses-17-10B981)
+![Tests](https://img.shields.io/badge/tests-90+_passing-2EA043) ![Routes](https://img.shields.io/badge/routes-8-10B981) ![Stops](https://img.shields.io/badge/stops-26-10B981) ![Buses](https://img.shields.io/badge/simulated_buses-17-10B981)
 
 </div>
 
@@ -222,7 +222,7 @@ flowchart LR
     class G,C,E,S,A ok
 ```
 
-**80+ automated tests** cover exactly these — and none of them need the database, the cache or the broker, which is why the rules live in plain shared functions. The green-score tests use the specification's own worked examples: a new electric bus scores exactly 100.
+**90+ automated tests** cover exactly these — and none of them need the database, the cache or the broker, which is why the rules live in plain shared functions. The green-score tests use the specification's own worked examples: a new electric bus scores exactly 100.
 
 ---
 

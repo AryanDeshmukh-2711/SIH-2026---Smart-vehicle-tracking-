@@ -15,15 +15,15 @@ import type { RawReading } from './validate.ts';
  * barely up.
  */
 
-export const GPS_TOPIC = 'him_gati/bus/+/location';
+export const GPS_TOPIC = 'routify/bus/+/location';
 /** Operator-reported delay, crowd level and cancellation — not GPS telemetry. */
-export const STATUS_TOPIC = 'him_gati/bus/+/status';
+export const STATUS_TOPIC = 'routify/bus/+/status';
 
 let client: MqttClient | null = null;
 
 export function startGpsConsumer(): MqttClient {
   client = mqtt.connect(env.MQTT_URL, {
-    clientId: `himgati-api-${Math.random().toString(16).slice(2, 10)}`,
+    clientId: `routify-api-${Math.random().toString(16).slice(2, 10)}`,
     reconnectPeriod: 2000,
     clean: true,
   });

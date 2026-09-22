@@ -7,7 +7,7 @@
  * Node and doing the geometry by hand.
  */
 
-import type { LatLng } from '@himgati/shared';
+import type { LatLng } from '@routify/shared';
 import { prisma } from './prisma.ts';
 
 /* ------------------------------ map matching ------------------------------ */

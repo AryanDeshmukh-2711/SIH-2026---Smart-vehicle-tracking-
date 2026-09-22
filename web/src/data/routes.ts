@@ -1,2 +1,2 @@
-/** Route table — see `@himgati/shared/data`, shared with the API seed. */
-export * from '@himgati/shared/data';
+/** Route table — see `@routify/shared/data`, shared with the API seed. */
+export * from '@routify/shared/data';

@@ -1,8 +1,8 @@
 {
-  "name": "himgati",
+  "name": "routify",
   "version": "1.0.0",
   "private": true,
-  "description": "HimGati \u2014 smart public transport & tourism platform for Himachal Pradesh",
+  "description": "Routify \u2014 smart public transport & tourism platform for Himachal Pradesh",
   "workspaces": [
     "packages/*",
     "web",
@@ -12,16 +12,16 @@
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v && docker compose up -d",
-    "db:migrate": "npm run db:migrate --workspace @himgati/api",
-    "db:seed": "npm run db:seed --workspace @himgati/api",
-    "dev:api": "npm run dev --workspace @himgati/api",
-    "dev:sim": "npm run simulator --workspace @himgati/api",
-    "dev:web": "npm run dev --workspace @himgati/web",
-    "build": "npm run build --workspace @himgati/web",
+    "db:migrate": "npm run db:migrate --workspace @routify/api",
+    "db:seed": "npm run db:seed --workspace @routify/api",
+    "dev:api": "npm run dev --workspace @routify/api",
+    "dev:sim": "npm run simulator --workspace @routify/api",
+    "dev:web": "npm run dev --workspace @routify/web",
+    "build": "npm run build --workspace @routify/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev:reset": "docker exec himgati-redis redis-cli FLUSHALL"
+    "dev:reset": "docker exec routify-redis redis-cli FLUSHALL"
   },
   "devDependencies": {
     "vitest": "^4.1.10"

@@ -24,7 +24,7 @@ interface StoredSession {
   user: SessionUser;
 }
 
-const STORAGE_KEY = 'himgati.session';
+const STORAGE_KEY = 'routify.session';
 
 function read(): StoredSession | null {
   try {

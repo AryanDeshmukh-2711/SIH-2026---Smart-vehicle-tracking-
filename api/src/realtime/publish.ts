@@ -7,7 +7,7 @@
  */
 
 import type { Server } from 'socket.io';
-import type { StopPrediction } from '@himgati/shared';
+import type { StopPrediction } from '@routify/shared';
 import { ageSecOf, effectiveStatus, type LiveVehicle } from '../state/live.ts';
 
 let io: Server | null = null;

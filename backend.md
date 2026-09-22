@@ -18,8 +18,8 @@ twelve-year-old diesels. Those three facts drive most of the decisions below.
    AIS-140 tracker on a bus                 Driver app        Depot console
    (or the simulator, locally)              (web)             (web)
             │                                   │                 │
-            │ MQTT: him_gati/bus/{id}/location  │ HTTPS           │ HTTPS
-            │       him_gati/bus/{id}/status    │                 │
+            │ MQTT: routify/bus/{id}/location  │ HTTPS           │ HTTPS
+            │       routify/bus/{id}/status    │                 │
             ▼                                   ▼                 ▼
    ┌──────────────────────────────────────────────────────────────────────┐
    │                        API  (Node + Express)                          │
@@ -109,7 +109,7 @@ This is the spine of the product. Everything else is a variation on it.
 
 ### Step 1 — Intake over MQTT
 
-A tracker publishes to `him_gati/bus/{busId}/location`. The API subscribes with
+A tracker publishes to `routify/bus/{busId}/location`. The API subscribes with
 a wildcard, so vehicles need no registration step to start appearing.
 
 **Why MQTT.** Indian commercial vehicles carry AIS-140 VLTD trackers, and MQTT
@@ -238,7 +238,7 @@ A GPS tracker knows where a bus is. It does **not** know whether the service is
 running late, how full it is, or whether the depot cancelled it. Inventing that
 telemetry would mean pretending AIS-140 hardware produces data it does not.
 
-So operational state is a separate channel — `him_gati/bus/{id}/status` over
+So operational state is a separate channel — `routify/bus/{id}/status` over
 MQTT, and the driver/admin REST endpoints — written to its own Redis key and
 merged with the position only at read time.
 

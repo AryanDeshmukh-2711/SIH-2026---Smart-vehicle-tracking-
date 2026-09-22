@@ -14,9 +14,9 @@
  */
 
 import mqtt from 'mqtt';
-import { ROUTES, BUSES } from '@himgati/shared/data';
-import { cumulativeDistances, pointAlong } from '@himgati/shared';
-import type { LatLng, Route } from '@himgati/shared';
+import { ROUTES, BUSES } from '@routify/shared/data';
+import { cumulativeDistances, pointAlong } from '@routify/shared';
+import type { LatLng, Route } from '@routify/shared';
 import { env } from '../config/env.ts';
 import { logger } from '../config/logger.ts';
 
@@ -169,7 +169,7 @@ async function main(): Promise<void> {
   // in a dead zone, so the blackout never lasts and the demo silently breaks.
   // MQTT disconnects a duplicate client id, so a second instance takes over
   // cleanly instead of racing the first.
-  const client = await mqtt.connectAsync(env.MQTT_URL, { clientId: 'himgati-simulator' });
+  const client = await mqtt.connectAsync(env.MQTT_URL, { clientId: 'routify-simulator' });
 
   log.info(
     { vehicles: fleet.length, broker: env.MQTT_URL, timeScale: env.SIM_TIME_SCALE },
@@ -292,8 +292,8 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => void stop());
 }
 
-const topic = (busId: string) => `him_gati/bus/${busId}/location`;
-const statusTopic = (busId: string) => `him_gati/bus/${busId}/status`;
+const topic = (busId: string) => `routify/bus/${busId}/location`;
+const statusTopic = (busId: string) => `routify/bus/${busId}/status`;
 
 main().catch((err) => {
   log.error({ err: err instanceof Error ? err.message : err }, 'simulator failed');

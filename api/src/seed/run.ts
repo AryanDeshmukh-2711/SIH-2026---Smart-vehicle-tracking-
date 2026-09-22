@@ -1,5 +1,5 @@
 /**
- * Seed the database from the canonical dataset in `@himgati/shared/data`.
+ * Seed the database from the canonical dataset in `@routify/shared/data`.
  *
  * Idempotent: every write is an upsert keyed on the natural id, so this can be
  * re-run against a populated database without duplicating anything. Route shapes
@@ -8,9 +8,9 @@
  * corrupt every arrival time on that corridor.
  */
 
-import { ALERTS, BUSES, ROUTES, STOPS } from '@himgati/shared/data';
+import { ALERTS, BUSES, ROUTES, STOPS } from '@routify/shared/data';
 import type { AlertKind as PrismaAlertKind } from '@prisma/client';
-import type { AlertKind, EmissionNorm, RouteCategory, StopKind } from '@himgati/shared';
+import type { AlertKind, EmissionNorm, RouteCategory, StopKind } from '@routify/shared';
 import { prisma, connectDatabase, disconnectDatabase } from '../db/prisma.ts';
 import { logger } from '../config/logger.ts';
 import { assignDriversToTrips, seedAccounts } from './accounts.ts';

@@ -105,7 +105,7 @@ A **modular monolith**, not fifteen microservices. Everything is one Node proces
 | Frontend | React + Vite, installable PWA | One URL, works on any phone, caches for offline |
 
 ```
-himgati/
+routify/
 ├── api/                 Backend — GPS pipeline, ETA engine, REST + realtime
 ├── web/                 The app you look at
 ├── packages/shared/     Rules used by BOTH sides, so they can never disagree
@@ -127,7 +127,7 @@ himgati/
 
 ## 🔌 Swapping in real buses
 
-The simulator publishes to the same MQTT topic real hardware would (`him_gati/bus/{id}/location`). Nothing downstream knows the difference — validation, map-matching and prediction all run identically. Point a real AIS-140 fleet at the broker and the simulator simply stops being needed.
+The simulator publishes to the same MQTT topic real hardware would (`routify/bus/{id}/location`). Nothing downstream knows the difference — validation, map-matching and prediction all run identically. Point a real AIS-140 fleet at the broker and the simulator simply stops being needed.
 
 Two settings in `.env` exist purely for the demo and should change in production:
 
@@ -150,7 +150,7 @@ Worth stating plainly rather than being caught out on:
 npm test
 ```
 
-83 tests covering the logic the product's credibility rests on. None of them need Postgres, Redis or the broker — that's deliberate, and the reason those rules live in plain functions in `packages/shared`.
+93 tests covering the logic the product's credibility rests on. None of them need Postgres, Redis or the broker — that's deliberate, and the reason those rules live in plain functions in `packages/shared`.
 
 - **GPS validation** — impossible speeds, swapped coordinates, broken device clocks, GPS jitter over short intervals, and out-of-order readings from a dead-zone backlog.
 - **Confidence ladder** — the exact thresholds and output shapes from SRS §8.3, including that a bus is declared Signal Lost at 3 minutes while its ETA is still medium-confidence until 5.
@@ -178,7 +178,7 @@ Demo accounts (seeded by `npm run db:seed`):
 |---|---|---|
 | Driver | `HRTC-D-4021` | OTP only |
 | Depot manager | `HRTC-M-SML` | `shimla-depot-2026` |
-| Admin | `HRTC-ADMIN` | `himgati-admin-2026` |
+| Admin | `HRTC-ADMIN` | `routify-admin-2026` |
 | Transport authority | `HPTA-001` | `authority-oversight-2026` |
 
 In development the OTP comes back in the response as `devCode`, so the flow works without an SMS gateway. That's gated on `NODE_ENV` — returning it in production would make the whole mechanism decorative.

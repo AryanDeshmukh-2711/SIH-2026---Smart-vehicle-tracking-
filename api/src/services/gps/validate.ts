@@ -13,8 +13,8 @@
  * reconstruct the path the bus actually took (SRS §8.5).
  */
 
-import { haversineKm } from '@himgati/shared';
-import type { LatLng } from '@himgati/shared';
+import { haversineKm } from '@routify/shared';
+import type { LatLng } from '@routify/shared';
 
 export interface RawReading {
   busId: string;

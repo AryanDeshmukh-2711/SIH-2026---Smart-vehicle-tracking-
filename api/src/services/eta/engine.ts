@@ -17,8 +17,8 @@ import {
   TIMETABLE_FALLBACK_AFTER_SEC,
   confidenceFromAge,
   rangeFor,
-} from '@himgati/shared';
-import type { Confidence, StopPrediction } from '@himgati/shared';
+} from '@routify/shared';
+import type { Confidence, StopPrediction } from '@routify/shared';
 import type { NetworkRoute } from '../../state/network.ts';
 
 /** Seconds a vehicle stands at an intermediate stop, by service class. */

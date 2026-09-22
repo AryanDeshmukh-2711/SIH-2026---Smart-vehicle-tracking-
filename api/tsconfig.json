@@ -18,9 +18,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@himgati/shared": ["../packages/shared/src/index.ts"],
-      "@himgati/shared/data": ["../packages/shared/src/data/index.ts"],
-      "@himgati/shared/*": ["../packages/shared/src/*.ts"]
+      "@routify/shared": ["../packages/shared/src/index.ts"],
+      "@routify/shared/data": ["../packages/shared/src/data/index.ts"],
+      "@routify/shared/*": ["../packages/shared/src/*.ts"]
     }
   },
   "include": ["src", "../packages/shared/src"]

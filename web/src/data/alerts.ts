@@ -1,11 +1,11 @@
 import type { OfflinePack, UserProfile } from '@/types';
 
 /**
- * Service alerts live in `@himgati/shared/data` so the API seeds them and
+ * Service alerts live in `@routify/shared/data` so the API seeds them and
  * serves them from the database. Offline packs and the demo profile stay here:
  * both are client-side concerns with no server representation yet.
  */
-export { ALERTS } from '@himgati/shared/data';
+export { ALERTS } from '@routify/shared/data';
 
 /* ------------------------------ offline packs ----------------------------- */
 

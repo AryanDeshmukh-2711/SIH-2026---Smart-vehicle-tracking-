@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SIGNAL_LOST_AFTER_SEC } from '@himgati/shared';
+import { SIGNAL_LOST_AFTER_SEC } from '@routify/shared';
 import { validateReading, type RawReading, type ValidationContext } from './validate.ts';
 
 /**

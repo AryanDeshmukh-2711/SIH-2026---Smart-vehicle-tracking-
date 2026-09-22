@@ -7,8 +7,8 @@
  * runs with persistence disabled.
  */
 
-import type { Occupancy, StopPrediction, TripStatus } from '@himgati/shared';
-import { SIGNAL_LOST_AFTER_SEC } from '@himgati/shared';
+import type { Occupancy, StopPrediction, TripStatus } from '@routify/shared';
+import { SIGNAL_LOST_AFTER_SEC } from '@routify/shared';
 import { keys, LIVE_TTL_SEC, redis } from '../db/redis.ts';
 import { mergeOps, type OpsSource, type VehicleOps } from './ops.ts';
 

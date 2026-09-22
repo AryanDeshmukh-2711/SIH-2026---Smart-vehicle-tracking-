@@ -1,4 +1,4 @@
-# HimGati — Working Context
+# Routify — Working Context
 
 > Handoff notes for picking this project up cold. Covers what exists, why it was
 > built this way, the non-obvious decisions, the bugs already found and fixed,
@@ -11,7 +11,7 @@
 
 ## 1. What this is
 
-**HimGati** — a smart public transport and tourism platform for Himachal
+**Routify** — a smart public transport and tourism platform for Himachal
 Pradesh, built for **SIH 2026**. Full stack, everything on the web.
 
 The product answers three questions from the SRS: *where is my bus*, *when will
@@ -57,7 +57,7 @@ npm workspace. The frontend used to sit at the repo root and was moved into
 `web/` when the backend arrived.
 
 ```
-himgati/
+routify/
 ├── api/                  Backend — GPS pipeline, ETA engine, REST + realtime
 │   ├── prisma/           Schema + 3 migrations
 │   └── src/
@@ -83,7 +83,7 @@ The Green Score formula, CO₂ factors, confidence thresholds, geo maths and the
 frontend displays it using *the same function*. They cannot disagree.
 
 `web/src/lib/{eta,green,geo}.ts` and `web/src/data/{stops,routes,buses,alerts}.ts`
-are **thin re-export shims** pointing at `@himgati/shared`. That was deliberate:
+are **thin re-export shims** pointing at `@routify/shared`. That was deliberate:
 it kept ~40 existing imports working unchanged during the restructure. Don't add
 logic to the shims.
 
@@ -148,8 +148,8 @@ Bus GPS ──MQTT──▶ validate ──▶ map-match ──▶ Redis live �
 
 Two MQTT topics, deliberately separate:
 
-- `him_gati/bus/{id}/location` — position only. What AIS-140 hardware produces.
-- `him_gati/bus/{id}/status` — delay, crowd level, cancellation, bay departure.
+- `routify/bus/{id}/location` — position only. What AIS-140 hardware produces.
+- `routify/bus/{id}/status` — delay, crowd level, cancellation, bay departure.
   **Operator-reported**, per SRS FR-37 (driver app "report delay" / "update
   crowd"). A tracker has no idea whether the depot cancelled a trip; putting
   that in the position payload would mean inventing telemetry.
@@ -271,7 +271,7 @@ Demo accounts (seeded):
 |---|---|---|
 | Driver | `HRTC-D-4021` | OTP only |
 | Depot manager | `HRTC-M-SML` | `shimla-depot-2026` |
-| Admin | `HRTC-ADMIN` | `himgati-admin-2026` |
+| Admin | `HRTC-ADMIN` | `routify-admin-2026` |
 | Authority | `HPTA-001` | `authority-oversight-2026` |
 
 In development the OTP returns as `devCode` in the response — gated on

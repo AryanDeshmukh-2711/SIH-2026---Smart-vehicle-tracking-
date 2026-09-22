@@ -14,8 +14,8 @@ import { prisma } from '../../db/prisma.ts';
  */
 
 const secret = new TextEncoder().encode(env.JWT_SECRET);
-const ISSUER = 'himgati';
-const AUDIENCE = 'himgati-api';
+const ISSUER = 'routify';
+const AUDIENCE = 'routify-api';
 
 export interface AccessClaims extends JWTPayload {
   sub: string;

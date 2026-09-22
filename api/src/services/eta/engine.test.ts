@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TIMETABLE_FALLBACK_AFTER_SEC } from '@himgati/shared';
+import { TIMETABLE_FALLBACK_AFTER_SEC } from '@routify/shared';
 import {
   ORIGIN_BAY_KM,
   computeEta,

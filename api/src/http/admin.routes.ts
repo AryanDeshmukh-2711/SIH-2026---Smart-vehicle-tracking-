@@ -12,8 +12,8 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { greenScore } from '@himgati/shared';
-import type { Bus } from '@himgati/shared';
+import { greenScore } from '@routify/shared';
+import type { Bus } from '@routify/shared';
 import { prisma } from '../db/prisma.ts';
 import { logger } from '../config/logger.ts';
 import { network, refreshNetwork } from '../state/network.ts';

@@ -12,8 +12,8 @@
  * cannot be trusted never becomes "where the bus is".
  */
 
-import { SIGNAL_LOST_AFTER_SEC } from '@himgati/shared';
-import type { StopPrediction } from '@himgati/shared';
+import { SIGNAL_LOST_AFTER_SEC } from '@routify/shared';
+import type { StopPrediction } from '@routify/shared';
 import { env } from '../../config/env.ts';
 import { etaLog, gpsLog } from '../../config/logger.ts';
 import { prisma } from '../../db/prisma.ts';

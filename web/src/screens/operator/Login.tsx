@@ -58,7 +58,7 @@ export function OperatorLoginScreen() {
       else await signInWithPassword(identifier.trim(), password);
 
       // Read back from storage rather than the context, which has not re-rendered yet.
-      const raw = localStorage.getItem('himgati.session');
+      const raw = localStorage.getItem('routify.session');
       const role = raw ? (JSON.parse(raw).user.role as string) : 'driver';
       navigate(landing(role), { replace: true });
     } catch (err) {
@@ -188,7 +188,7 @@ export function OperatorLoginScreen() {
           <Notice tone="neutral">
             Demo accounts — driver <span className="font-mono">HRTC-D-4021</span> (OTP), admin{' '}
             <span className="font-mono">HRTC-ADMIN</span> /{' '}
-            <span className="font-mono">himgati-admin-2026</span>.
+            <span className="font-mono">routify-admin-2026</span>.
           </Notice>
         </Stack>
       </ScreenBody>

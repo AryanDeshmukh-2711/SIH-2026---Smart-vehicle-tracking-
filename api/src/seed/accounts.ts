@@ -54,7 +54,7 @@ export const DEMO_ACCOUNTS: AccountSeed[] = [
     name: 'Neha Sharma',
     role: 'admin',
     employeeId: 'HRTC-ADMIN',
-    password: 'himgati-admin-2026',
+    password: 'routify-admin-2026',
   },
   {
     phone: '+919800000006',

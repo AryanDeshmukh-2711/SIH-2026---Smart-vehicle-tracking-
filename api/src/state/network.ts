@@ -9,7 +9,7 @@
  * Call `refreshNetwork()` after any admin edit to routes or stops.
  */
 
-import type { LatLng, RouteCategory } from '@himgati/shared';
+import type { LatLng, RouteCategory } from '@routify/shared';
 import { prisma } from '../db/prisma.ts';
 import { allRouteShapes } from '../db/geo.ts';
 import { logger } from '../config/logger.ts';

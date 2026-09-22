@@ -1,9 +1,9 @@
 {
-  "name": "@himgati/api",
+  "name": "@routify/api",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "HimGati backend — GPS ingestion, ETA engine and realtime transit API",
+  "description": "Routify backend — GPS ingestion, ETA engine and realtime transit API",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
@@ -20,7 +20,7 @@
     "seed": "tsx src/seed/run.ts"
   },
   "dependencies": {
-    "@himgati/shared": "*",
+    "@routify/shared": "*",
     "@node-rs/argon2": "^2.0.2",
     "@prisma/client": "^6.3.1",
     "cors": "^2.8.5",

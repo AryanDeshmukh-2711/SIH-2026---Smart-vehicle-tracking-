@@ -1,9 +1,9 @@
 {
-  "name": "@himgati/web",
+  "name": "@routify/web",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "HimGati — Smart public transport & tourism platform for Himachal Pradesh",
+  "description": "Routify — Smart public transport & tourism platform for Himachal Pradesh",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@himgati/shared": "*",
+    "@routify/shared": "*",
     "framer-motion": "^12.4.7",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.475.0",

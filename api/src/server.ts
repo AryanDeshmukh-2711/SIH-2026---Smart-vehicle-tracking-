@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   httpServer.listen(env.API_PORT, () => {
     logger.info(
       { port: env.API_PORT, env: env.NODE_ENV },
-      `HimGati API listening on http://localhost:${env.API_PORT}`,
+      `Routify API listening on http://localhost:${env.API_PORT}`,
     );
   });
 
